@@ -145,10 +145,10 @@ function drawBoxElement(
 
   // Glow pass
   ctx.shadowColor = glowColor
-  ctx.shadowBlur = selected ? 18 : (el.color ? 14 : 6)
-  ctx.strokeStyle = el.color ?? (selected ? '#6366f1' : strokeColor)
-  ctx.lineWidth = selected ? 2 : 1.5
-  ctx.setLineDash(el.color || selected ? [] : [6, 4])
+  ctx.shadowBlur = el.color ? 14 : 6
+  ctx.strokeStyle = el.color ?? strokeColor
+  ctx.lineWidth = 1.5
+  ctx.setLineDash(el.color ? [] : [6, 4])
   ctx.stroke()
   ctx.restore()
 
@@ -163,6 +163,16 @@ function drawBoxElement(
     ctx.textBaseline = 'top'
     ctx.fillText(el.text, el.x + 12, el.y + 10)
     ctx.restore()
+  }
+
+  if (selected) {
+    ctx.strokeStyle = '#6366f1'
+    ctx.lineWidth = 2
+    ctx.setLineDash([4, 2])
+    ctx.beginPath()
+    ctx.roundRect(el.x - 3, el.y - 3, el.width + 6, el.height + 6, 13)
+    ctx.stroke()
+    ctx.setLineDash([])
   }
 
   if (selected && showHandles) drawHandles(ctx, el)

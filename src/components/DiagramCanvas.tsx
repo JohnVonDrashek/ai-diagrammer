@@ -164,12 +164,12 @@ export function DiagramCanvas() {
         return
       }
       if (e.key === 'v' && (e.metaKey || e.ctrlKey)) {
-        if (clipboardRef.current) {
+        if (clipboardRef.current.length > 0) {
           e.preventDefault()
+          const prevCount = useAppStore.getState().elements.length
           paste()
-          // Ensure icon image is loaded for the pasted element
-          const pasted = useAppStore.getState().elements.at(-1)
-          if (pasted?.type === 'icon') loadIcon(pasted.iconName, themeRef.current)
+          const els = useAppStore.getState().elements.slice(prevCount)
+          els.forEach((el) => { if (el.type === 'icon') loadIcon(el.iconName, themeRef.current) })
         }
         return
       }
@@ -184,9 +184,10 @@ export function DiagramCanvas() {
         if (selectedIdsRef.current.length > 0) {
           e.preventDefault()
           copySelected()
+          const prevCount = useAppStore.getState().elements.length
           paste()
-          const pasted = useAppStore.getState().elements.at(-1)
-          if (pasted?.type === 'icon') loadIcon(pasted.iconName, themeRef.current)
+          const els = useAppStore.getState().elements.slice(prevCount)
+          els.forEach((el) => { if (el.type === 'icon') loadIcon(el.iconName, themeRef.current) })
         }
         return
       }

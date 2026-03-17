@@ -46,7 +46,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
-  transition: background 0.2s;
 }
 
 ::-webkit-scrollbar { width: 4px; }

@@ -36,16 +36,24 @@ function snapshotActive(s: AppState): Diagram {
 
 const STORAGE_KEY = 'diagramr:v1'
 
-function loadFromStorage(): { diagrams: Diagram[]; activeDiagramId: string } | null {
+interface StoredData {
+  diagrams: Diagram[]
+  activeDiagramId: string
+  theme?: Theme
+  defaultFontSize?: number
+  rotationEnabled?: boolean
+}
+
+function loadFromStorage(): StoredData | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     return raw ? JSON.parse(raw) : null
   } catch { return null }
 }
 
-function saveToStorage(diagrams: Diagram[], activeDiagramId: string): void {
+function saveToStorage(diagrams: Diagram[], activeDiagramId: string, theme: Theme, defaultFontSize: number, rotationEnabled: boolean): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ diagrams, activeDiagramId }))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ diagrams, activeDiagramId, theme, defaultFontSize, rotationEnabled }))
   } catch { /* quota exceeded */ }
 }
 
@@ -87,7 +95,7 @@ interface AppState {
   pendingPlacementPos: { x: number; y: number } | null
   swappingIconId: string | null
   textInputPos: { screenX: number; screenY: number } | null
-  clipboard: DiagramElement | null
+  clipboard: DiagramElement[]
   isColorPickerOpen: boolean
   colorPickerPos: { x: number; y: number }
   renamingId: string | null
@@ -160,16 +168,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedIds: [],
   selectedConnectionId: null,
   toolMode: 'select',
-  rotationEnabled: true,
-  defaultFontSize: 16,
-  theme: 'system',
+  rotationEnabled: saved?.rotationEnabled ?? true,
+  defaultFontSize: saved?.defaultFontSize ?? 16,
+  theme: saved?.theme ?? 'system',
   systemTheme: getSystemTheme(),
   isIconSearchOpen: false,
   iconSearchQuery: '',
   pendingPlacementPos: null,
   swappingIconId: null,
   textInputPos: null,
-  clipboard: null,
+  clipboard: [],
   isColorPickerOpen: false,
   colorPickerPos: { x: 0, y: 0 },
   renamingId: null,
@@ -184,7 +192,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         d.id === s.activeDiagramId ? snapshotActive(s) : d
       )
       const next = makeDiagram({ name: `Diagram ${updated.length + 1}` })
-      return { diagrams: [...updated, next], activeDiagramId: next.id, elements: next.elements, connections: next.connections, viewport: next.viewport, ...EPHEMERAL_RESET }
+      const next$ = { diagrams: [...updated, next], activeDiagramId: next.id, elements: next.elements, connections: next.connections, viewport: next.viewport, ...EPHEMERAL_RESET }
+      setTimeout(() => flushSave({ ...s, ...next$ }), 0)
+      return next$
     }),
 
   switchDiagram: (id) =>
@@ -195,7 +205,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       )
       const target = updated.find((d) => d.id === id)
       if (!target) return {}
-      return { diagrams: updated, activeDiagramId: id, elements: target.elements, connections: target.connections, viewport: target.viewport, ...EPHEMERAL_RESET }
+      const next$ = { diagrams: updated, activeDiagramId: id, elements: target.elements, connections: target.connections, viewport: target.viewport, ...EPHEMERAL_RESET }
+      setTimeout(() => flushSave({ ...s, ...next$ }), 0)
+      return next$
     }),
 
   renameDiagram: (id, name) =>
@@ -208,16 +220,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (id !== s.activeDiagramId) return { diagrams: remaining }
       const idx = s.diagrams.findIndex((d) => d.id === id)
       const fallback = remaining[Math.max(0, idx - 1)]
-      return { diagrams: remaining, activeDiagramId: fallback.id, elements: fallback.elements, connections: fallback.connections, viewport: fallback.viewport, ...EPHEMERAL_RESET }
+      const next$ = { diagrams: remaining, activeDiagramId: fallback.id, elements: fallback.elements, connections: fallback.connections, viewport: fallback.viewport, ...EPHEMERAL_RESET }
+      setTimeout(() => flushSave({ ...s, ...next$ }), 0)
+      return next$
     }),
   importDiagram: (diagram) =>
     set((s) => {
-      // Save current diagram first, then add imported one and switch to it
       const updated = s.diagrams.map((d) =>
         d.id === s.activeDiagramId ? snapshotActive(s) : d
       )
       const fresh = { ...diagram, id: Math.random().toString(36).slice(2, 10) }
-      return { diagrams: [...updated, fresh], activeDiagramId: fresh.id, elements: fresh.elements, connections: fresh.connections, viewport: fresh.viewport, ...EPHEMERAL_RESET }
+      const next$ = { diagrams: [...updated, fresh], activeDiagramId: fresh.id, elements: fresh.elements, connections: fresh.connections, viewport: fresh.viewport, ...EPHEMERAL_RESET }
+      setTimeout(() => flushSave({ ...s, ...next$ }), 0)
+      return next$
     }),
 
   // ── Canvas ──────────────────────────────────────────────────────────────────
@@ -249,15 +264,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({ connections: s.connections.map((c) => c.id === id ? { ...c, ...partial } : c) })),
   setToolMode: (toolMode) => set({ toolMode }),
 
-  toggleRotation: () => set((s) => ({ rotationEnabled: !s.rotationEnabled })),
-  setDefaultFontSize: (size) => set({ defaultFontSize: Math.max(8, Math.min(96, size)) }),
+  toggleRotation: () =>
+    set((s) => {
+      const next$ = { rotationEnabled: !s.rotationEnabled }
+      setTimeout(() => flushSave({ ...s, ...next$ }), 0)
+      return next$
+    }),
+  setDefaultFontSize: (size) =>
+    set((s) => {
+      const next$ = { defaultFontSize: Math.max(8, Math.min(96, size)) }
+      setTimeout(() => flushSave({ ...s, ...next$ }), 0)
+      return next$
+    }),
 
   // ── Theme ───────────────────────────────────────────────────────────────────
 
   toggleTheme: () =>
     set((s) => {
       const order: Theme[] = ['system', 'dark', 'light']
-      return { theme: order[(order.indexOf(s.theme) + 1) % order.length] }
+      const next$ = { theme: order[(order.indexOf(s.theme) + 1) % order.length] }
+      setTimeout(() => flushSave({ ...s, ...next$ }), 0)
+      return next$
     }),
   setSystemTheme: (systemTheme) => set({ systemTheme }),
 
@@ -273,14 +300,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeTextInput: () => set({ textInputPos: null, toolMode: 'select' }),
   copySelected: () =>
     set((s) => {
-      const el = s.elements.find((e) => e.id === s.selectedIds[0])
-      return el ? { clipboard: el } : {}
+      const clipboard = s.elements.filter((e) => s.selectedIds.includes(e.id))
+      return clipboard.length > 0 ? { clipboard } : {}
     }),
   paste: () =>
     set((s) => {
-      if (!s.clipboard) return {}
-      const newEl: DiagramElement = { ...s.clipboard, id: Math.random().toString(36).slice(2, 10), x: s.clipboard.x + 20, y: s.clipboard.y + 20 }
-      return { elements: [...s.elements, newEl], selectedIds: [newEl.id] }
+      if (s.clipboard.length === 0) return {}
+      const newEls: DiagramElement[] = s.clipboard.map((el) => ({
+        ...el,
+        id: Math.random().toString(36).slice(2, 10),
+        x: el.x + 20,
+        y: el.y + 20,
+      }))
+      return { elements: [...s.elements, ...newEls], selectedIds: newEls.map((e) => e.id) }
     }),
   openColorPicker: (x, y) => set({ isColorPickerOpen: true, colorPickerPos: { x, y } }),
   closeColorPicker: () => set({ isColorPickerOpen: false }),
@@ -320,15 +352,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 // ── Auto-save (module-level, debounced) ───────────────────────────────────────
 
+function flushSave(state: AppState): void {
+  const snapshot = snapshotActive(state)
+  const diagrams = state.diagrams.map((d) =>
+    d.id === state.activeDiagramId ? snapshot : d
+  )
+  saveToStorage(diagrams, state.activeDiagramId, state.theme, state.defaultFontSize, state.rotationEnabled)
+}
+
 let _saveTimer: ReturnType<typeof setTimeout> | null = null
 
 useAppStore.subscribe((state) => {
   if (_saveTimer) clearTimeout(_saveTimer)
-  _saveTimer = setTimeout(() => {
-    const snapshot = snapshotActive(state)
-    const diagrams = state.diagrams.map((d) =>
-      d.id === state.activeDiagramId ? snapshot : d
-    )
-    saveToStorage(diagrams, state.activeDiagramId)
-  }, 500)
+  _saveTimer = setTimeout(() => flushSave(state), 500)
 })

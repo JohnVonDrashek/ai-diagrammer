@@ -29,24 +29,6 @@ npm run dev
 
 Requires Node 18+. The app works fully without an API key — AI icon matching is a progressive enhancement.
 
-## Keyboard shortcuts
-
-| Key | Action |
-|-----|--------|
-| `I` / `/` | Add icon |
-| `T` | Add text |
-| `B` | Add box |
-| `R` | Rename selected |
-| `E` | Draw edge from selected |
-| `C` | Change color |
-| `S` | Swap icon / cycle arrow style |
-| `D` | Reverse arrow direction |
-| `O` | Reset canvas rotation |
-| `⌘C / ⌘V / ⌘D` | Copy / paste / duplicate |
-| `⌫` | Delete selected |
-| `⌥ + scroll` | Rotate canvas |
-| `⌘⇧N` | New diagram tab |
-
 ## AI icon matching
 
 The optional server (`server/index.ts`) proxies requests to Claude Haiku when fuzzy matching finds no confident result. Set `ANTHROPIC_API_KEY` in `.env` to enable it. Without a key the server still runs and returns `null`, falling back to fuzzy search only.
