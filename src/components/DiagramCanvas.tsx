@@ -605,21 +605,37 @@ export function DiagramCanvas() {
           const dy = worldPos.y - ds.startWorldY
           let { origX: x, origY: y, origW: w, origH: h } = ds
           const MIN = 40
-          switch (ds.handle) {
-            case 0: x+=dx; y+=dy; w-=dx; h-=dy; break // TL
-            case 1:         y+=dy;         h-=dy; break // TM
-            case 2:         y+=dy; w+=dx;  h-=dy; break // TR
-            case 3:                w+=dx;         break // MR
-            case 4:                w+=dx;  h+=dy; break // BR
-            case 5:                        h+=dy; break // BM
-            case 6: x+=dx;         w-=dx;  h+=dy; break // BL
-            case 7: x+=dx;         w-=dx;         break // ML
+
+          const resizingEl = elementsRef.current.find((e) => e.id === ds.id)
+          if (resizingEl?.type === 'icon') {
+            // Proportional resize from corners only — use dominant axis
+            const ratio = ds.origW / ds.origH
+            // Determine raw new size per axis for this corner
+            const rawW = ds.handle === 0 || ds.handle === 6 ? ds.origW - dx : ds.origW + dx
+            const rawH = ds.handle === 0 || ds.handle === 2 ? ds.origH - dy : ds.origH + dy
+            const scaleW = rawW / ds.origW
+            const scaleH = rawH / ds.origH
+            const scale = Math.abs(scaleW - 1) >= Math.abs(scaleH - 1) ? scaleW : scaleH
+            w = Math.max(MIN, ds.origW * scale)
+            h = w / ratio
+            // Keep the fixed corner stationary
+            if (ds.handle === 0 || ds.handle === 6) x = ds.origX + ds.origW - w
+            if (ds.handle === 0 || ds.handle === 2) y = ds.origY + ds.origH - h
+          } else {
+            switch (ds.handle) {
+              case 0: x+=dx; y+=dy; w-=dx; h-=dy; break // TL
+              case 1:         y+=dy;         h-=dy; break // TM
+              case 2:         y+=dy; w+=dx;  h-=dy; break // TR
+              case 3:                w+=dx;         break // MR
+              case 4:                w+=dx;  h+=dy; break // BR
+              case 5:                        h+=dy; break // BM
+              case 6: x+=dx;         w-=dx;  h+=dy; break // BL
+              case 7: x+=dx;         w-=dx;         break // ML
+            }
+            w = Math.max(MIN, w)
+            h = Math.max(MIN, h)
           }
-          updateElement(ds.id, {
-            x, y,
-            width: Math.max(MIN, w),
-            height: Math.max(MIN, h),
-          })
+          updateElement(ds.id, { x, y, width: w, height: h })
         } else if (ds.kind === 'marquee') {
           marqueeRef.current = { x1: ds.startWorldX, y1: ds.startWorldY, x2: worldPos.x, y2: worldPos.y }
         }

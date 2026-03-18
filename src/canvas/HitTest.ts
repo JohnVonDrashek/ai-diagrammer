@@ -24,7 +24,8 @@ export function hitTest(
     const sel = elements.find((e) => e.id === selectedId)
     if (sel && sel.type !== 'text') {
       const { width, height } = elBounds(sel)
-      const handleIdx = hitHandle({ x: sel.x, y: sel.y, width, height }, worldX, worldY)
+      const cornersOnly = sel.type === 'icon'
+      const handleIdx = hitHandle({ x: sel.x, y: sel.y, width, height }, worldX, worldY, cornersOnly)
       if (handleIdx >= 0) return { kind: 'handle', id: sel.id, handle: handleIdx }
     }
   }
@@ -109,7 +110,8 @@ function distToSegment(px: number, py: number, x1: number, y1: number, x2: numbe
 function hitHandle(
   el: { x: number; y: number; width: number; height: number },
   wx: number,
-  wy: number
+  wy: number,
+  cornersOnly = false
 ): number {
   const positions = [
     [el.x, el.y],
@@ -123,6 +125,7 @@ function hitHandle(
   ]
 
   for (let i = 0; i < positions.length; i++) {
+    if (cornersOnly && i % 2 !== 0) continue
     const [hx, hy] = positions[i]
     if (Math.hypot(wx - hx, wy - hy) <= HANDLE_RADIUS) return i
   }

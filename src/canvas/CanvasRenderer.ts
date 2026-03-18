@@ -137,7 +137,7 @@ function drawIconElement(
     ctx.restore()
 
     if (showHandles) {
-      drawHandles(ctx, el, tc)
+      drawHandles(ctx, el, tc, true) // icons: corners only
     }
   }
 }
@@ -338,19 +338,21 @@ function drawTextElement(
 function drawHandles(
   ctx: CanvasRenderingContext2D,
   el: { x: number; y: number; width: number; height: number },
-  tc: ThemeColors
+  tc: ThemeColors,
+  cornersOnly = false
 ) {
   const handleSize = 7
-  const positions = [
-    [el.x, el.y],
-    [el.x + el.width / 2, el.y],
-    [el.x + el.width, el.y],
-    [el.x + el.width, el.y + el.height / 2],
-    [el.x + el.width, el.y + el.height],
-    [el.x + el.width / 2, el.y + el.height],
-    [el.x, el.y + el.height],
-    [el.x, el.y + el.height / 2],
+  const allPositions: [number, number][] = [
+    [el.x,                    el.y],                    // 0 TL
+    [el.x + el.width / 2,     el.y],                    // 1 TM
+    [el.x + el.width,         el.y],                    // 2 TR
+    [el.x + el.width,         el.y + el.height / 2],   // 3 MR
+    [el.x + el.width,         el.y + el.height],        // 4 BR
+    [el.x + el.width / 2,     el.y + el.height],        // 5 BM
+    [el.x,                    el.y + el.height],        // 6 BL
+    [el.x,                    el.y + el.height / 2],   // 7 ML
   ]
+  const positions = cornersOnly ? allPositions.filter((_, i) => i % 2 === 0) : allPositions
 
   ctx.fillStyle = tc.handleFill
   ctx.strokeStyle = tc.accent
