@@ -15,6 +15,9 @@ export function Toolbar() {
   const [importMenuOpen, setImportMenuOpen] = useState(false)
   const [pendingWorkspace, setPendingWorkspace] = useState<{ diagrams: Diagram[]; activeDiagramId: string } | null>(null)
 
+  const aiSkillBtnRef = useRef<HTMLButtonElement>(null)
+  const [aiSkillMenuOpen, setAiSkillMenuOpen] = useState(false)
+
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(window.matchMedia('(display-mode: standalone)').matches)
   const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
@@ -125,6 +128,19 @@ export function Toolbar() {
       e.target.value = ''
     }
     reader.readAsText(file)
+  }
+
+  const handleDownloadAiSkill = async () => {
+    const res = await fetch(`${import.meta.env.BASE_URL}holychart-diagram-skill.md`)
+    const text = await res.text()
+    const blob = new Blob([text], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'holychart-diagram-skill.md'
+    a.click()
+    URL.revokeObjectURL(url)
+    setAiSkillMenuOpen(false)
   }
 
   return (
@@ -300,7 +316,7 @@ export function Toolbar() {
       <Tooltip content="Export">
       <button
         ref={exportBtnRef}
-        onClick={() => { setExportMenuOpen(o => !o); setImportMenuOpen(false) }}
+        onClick={() => { setExportMenuOpen(o => !o); setImportMenuOpen(false); setAiSkillMenuOpen(false) }}
         style={{
           display: 'flex', alignItems: 'center', gap: 4,
           background: exportMenuOpen ? 'var(--accent-bg-subtle)' : 'transparent',
@@ -318,7 +334,7 @@ export function Toolbar() {
       <Tooltip content="Import">
       <button
         ref={importBtnRef}
-        onClick={() => { setImportMenuOpen(o => !o); setExportMenuOpen(false) }}
+        onClick={() => { setImportMenuOpen(o => !o); setExportMenuOpen(false); setAiSkillMenuOpen(false) }}
         style={{
           display: 'flex', alignItems: 'center', gap: 4,
           background: importMenuOpen ? 'var(--accent-bg-subtle)' : 'transparent',
@@ -330,6 +346,32 @@ export function Toolbar() {
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </button>
+      </Tooltip>
+
+      {/* AI Skill */}
+      <Tooltip content="AI diagram skill">
+      <button
+        ref={aiSkillBtnRef}
+        onClick={() => { setAiSkillMenuOpen(o => !o); setExportMenuOpen(false); setImportMenuOpen(false) }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          background: aiSkillMenuOpen ? 'var(--accent-bg-subtle)' : 'transparent',
+          border: aiSkillMenuOpen ? '1px solid var(--accent-border)' : '1px solid transparent',
+          borderRadius: 'var(--radius-md)',
+          color: aiSkillMenuOpen ? 'var(--accent-light)' : 'var(--text-kbd)',
+          padding: '3px 8px', cursor: 'pointer', fontSize: 12, transition: 'all 0.12s',
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="11" width="18" height="10" rx="2" />
+          <circle cx="9" cy="16" r="1" fill="currentColor" />
+          <circle cx="15" cy="16" r="1" fill="currentColor" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          <path d="M12 3v0" />
+          <line x1="4" y1="3" x2="4" y2="7" />
+          <line x1="20" y1="3" x2="20" y2="7" />
         </svg>
       </button>
       </Tooltip>
@@ -389,6 +431,57 @@ export function Toolbar() {
                 <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{item.sub}</div>
               </button>
             ))}
+          </div>
+        </>
+      )
+    })()}
+
+    {aiSkillMenuOpen && (() => {
+      const r = aiSkillBtnRef.current?.getBoundingClientRect()
+      return (
+        <>
+          <div onClick={() => setAiSkillMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 149 }} />
+          <div style={{
+            position: 'fixed', left: r ? Math.min(r.left, window.innerWidth - 310) : 0, top: r ? r.bottom + 6 : 0,
+            zIndex: 150, background: 'var(--surface-overlay)', border: '1px solid var(--border-muted)',
+            borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)',
+            backdropFilter: 'var(--backdrop-blur)', padding: '14px 16px', width: 290,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="10" rx="2" />
+                <circle cx="9" cy="16" r="1" fill="var(--accent)" />
+                <circle cx="15" cy="16" r="1" fill="var(--accent)" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                <path d="M12 3v0" />
+                <line x1="4" y1="3" x2="4" y2="7" />
+                <line x1="20" y1="3" x2="20" y2="7" />
+              </svg>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>AI Diagram Skill</span>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 6 }}>
+              Teach any AI assistant how to create HolyChart diagrams. This skill file contains the full schema reference, icon library, layout guidelines, and examples.
+            </p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: 14 }}>
+              Drop it into your AI tool's context (Claude Projects, custom GPTs, Cursor rules, etc.) and it will generate <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, padding: '1px 4px', background: 'var(--hover-bg)', borderRadius: 'var(--radius-sm)' }}>.holychart.json</span> files you can import directly.
+            </p>
+            <button
+              onClick={handleDownloadAiSkill}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                width: '100%', background: 'var(--accent-bg)', border: '1px solid var(--accent-border)',
+                borderRadius: 'var(--radius-md)', color: 'var(--accent-light)',
+                padding: '7px 14px', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                transition: 'all 0.12s',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.85' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '1' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Download Skill File
+            </button>
           </div>
         </>
       )
