@@ -85,9 +85,11 @@ export function Toolbar() {
       }}
     >
       {/* App name */}
-      <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 14, letterSpacing: '-0.3px', paddingRight: 8, borderRight: '1px solid var(--border)', marginRight: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+      <Tooltip content="Glory to Jesus Christ!">
+      <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 14, letterSpacing: '-0.3px', paddingRight: 8, borderRight: '1px solid var(--border)', marginRight: 4, display: 'flex', alignItems: 'center', gap: 5, cursor: 'default' }}>
         HolyChart <span style={{ fontSize: 18, opacity: 0.8 }}>✝</span>
       </span>
+      </Tooltip>
 
       {/* Add icon */}
       <ToolBtn title="Add icon (I)" onClick={() => openIconSearch()}>
