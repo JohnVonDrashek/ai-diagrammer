@@ -573,7 +573,8 @@ export function render(
   cssW: number,
   cssH: number,
   theme: string,
-  defaultFontSize: number
+  defaultFontSize: number,
+  connectCandidateId: string | null = null
 ) {
   const tc = getThemeColors()
 
@@ -611,9 +612,36 @@ export function render(
 
   drawConnections(ctx, connections, elements, selectedConnectionId, theme, defaultFontSize, tc)
 
+  // Highlight connect candidate with connection-preview color outline
+  if (connectCandidateId) {
+    const candEl = elements.find((e) => e.id === connectCandidateId)
+    if (candEl) {
+      const { width, height } = elementBounds(candEl)
+      const sx = candEl.x - 3, sy = candEl.y - 3, sw = width + 6, sh = height + 6
+      ctx.save()
+      ctx.fillStyle = tc.canvasMarqueeFill
+      ctx.beginPath(); ctx.roundRect(sx, sy, sw, sh, tc.radiusMd); ctx.fill()
+      ctx.strokeStyle = tc.canvasConnectionPreview
+      ctx.lineWidth = 1.5
+      ctx.setLineDash([4, 3])
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + sw, sy); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx, sy + sh); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(sx + sw, sy); ctx.lineTo(sx + sw, sy + sh); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(sx, sy + sh); ctx.lineTo(sx + sw, sy + sh); ctx.stroke()
+      ctx.setLineDash([])
+      ctx.restore()
+    }
+  }
+
   if (connectingFromId && connectionPreviewPos) {
     const fromEl = elements.find((e) => e.id === connectingFromId)
-    if (fromEl) drawConnectionPreview(ctx, fromEl, connectionPreviewPos, theme, tc)
+    if (fromEl) {
+      // Snap to candidate element's edge when hovering over one
+      const candEl = connectCandidateId ? elements.find((e) => e.id === connectCandidateId) : null
+      const targetPos = candEl ? bboxEdgePoint(candEl, elementCenter(fromEl)) : connectionPreviewPos
+      const startPos = candEl ? bboxEdgePoint(fromEl, elementCenter(candEl)) : bboxEdgePoint(fromEl, connectionPreviewPos)
+      drawArrow(ctx, startPos.x, startPos.y, targetPos.x, targetPos.y, tc.canvasConnectionPreview, 'dashed')
+    }
   }
 
   if (marqueeRect) drawMarquee(ctx, marqueeRect, theme, tc)

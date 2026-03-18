@@ -185,6 +185,7 @@ export function DiagramCanvas() {
   const clipboardRef = useRef(clipboard); clipboardRef.current = clipboard
   const connectionPreviewPosRef = useRef(connectionPreviewPos); connectionPreviewPosRef.current = connectionPreviewPos
   const connectionsRef = useRef(connections); connectionsRef.current = connections
+  const connectCandidateIdRef = useRef<string | null>(null)
 
   // Imperatively sets canvas cursor based on current mode, drag state, and hover position
   const updateCursor = useCallback((canvasX: number, canvasY: number) => {
@@ -227,6 +228,7 @@ export function DiagramCanvas() {
       marqueeRef.current, boxDrawPreviewWorldRef.current,
       dprRef.current, canvas.offsetWidth, canvas.offsetHeight, themeRef.current,
       useAppStore.getState().defaultFontSize,
+      connectCandidateIdRef.current,
     )
     rafRef.current = requestAnimationFrame(renderFrame)
   }, [])
@@ -429,7 +431,7 @@ export function DiagramCanvas() {
           boxDrawPreviewWorldRef.current = null
           return
         }
-        if (toolModeRef.current === 'connect') { cancelConnecting(); return }
+        if (toolModeRef.current === 'connect') { connectCandidateIdRef.current = null; cancelConnecting(); return }
         closeColorPicker(); closeRename(); closeContextMenu()
         setSelected(null); setSelectedConnection(null); closeTextInput()
         useAppStore.getState().closeIconSearch()
@@ -470,9 +472,15 @@ export function DiagramCanvas() {
       const wp = screenToWorld(canvasX, canvasY, vpRef.current)
       boxDrawPreviewWorldRef.current = { ...boxDrawPreviewWorldRef.current, x2: wp.x, y2: wp.y }
     }
-    if (toolModeRef.current !== 'connect') return
+    if (toolModeRef.current !== 'connect') {
+      connectCandidateIdRef.current = null
+      return
+    }
     const worldPos = screenToWorld(canvasX, canvasY, vpRef.current)
     setConnectionPreviewPos(worldPos)
+    // Detect candidate destination element
+    const hit = hitTest(elementsRef.current, worldPos.x, worldPos.y, null)
+    connectCandidateIdRef.current = (hit.kind === 'element' && hit.id !== connectingFromIdRef.current) ? hit.id : null
   }, [setConnectionPreviewPos, updateCursor])
 
   const onContextMenu = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
