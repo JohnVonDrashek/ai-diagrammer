@@ -2,7 +2,7 @@ import type { DiagramElement, ViewportState, Theme, ConnectionElement, BoxElemen
 import { buildViewportMatrix } from './ViewportMatrix'
 import { getIconImage, loadIcon, themeToHex } from '../icons/iconifyClient'
 import { getThemeColors, type ThemeColors } from '../themes/themeColors'
-import { measureTextElement, TEXT_PAD_X, TEXT_PAD_Y, TEXT_LINE_H } from './textMetrics'
+import { measureTextElement, parseMarkdownLine, segmentFont, measureMarkdownLine, TEXT_PAD_X, TEXT_PAD_Y, TEXT_LINE_H } from './textMetrics'
 
 const GRID_SIZE = 40
 
@@ -284,8 +284,8 @@ function drawTextElement(
   const lineH = fontSize * TEXT_LINE_H
 
   // Compute display bounds fresh from content (guards against stale stored dimensions)
-  ctx.font = `${fontSize}px ${tc.fontUi}`
-  const maxLineW = Math.max(...lines.map((l) => ctx.measureText(l || ' ').width))
+  const parsedLines = lines.map((l) => parseMarkdownLine(l || ' '))
+  const maxLineW = Math.max(...parsedLines.map((segs) => measureMarkdownLine(ctx, segs, fontSize, tc.fontUi)))
   const w = Math.max(120, maxLineW + TEXT_PAD_X * 2)
   const h = Math.max(40, lines.length * lineH + TEXT_PAD_Y * 2)
 
@@ -302,12 +302,18 @@ function drawTextElement(
   ctx.roundRect(el.x, el.y, w, h, tc.radiusMd)
   ctx.stroke()
 
-  // Text lines
-  ctx.fillStyle = el.color ?? tc.canvasLabelText
+  // Text lines with markdown rendering
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
-  lines.forEach((line, i) => {
-    ctx.fillText(line, el.x + TEXT_PAD_X, el.y + TEXT_PAD_Y + i * lineH)
+  parsedLines.forEach((segs, i) => {
+    let xPos = el.x + TEXT_PAD_X
+    const yPos = el.y + TEXT_PAD_Y + i * lineH
+    for (const seg of segs) {
+      ctx.font = segmentFont(seg, fontSize, tc.fontUi)
+      ctx.fillStyle = el.color ?? tc.canvasLabelText
+      ctx.fillText(seg.text, xPos, yPos)
+      xPos += ctx.measureText(seg.text).width
+    }
   })
 
   if (selected) {

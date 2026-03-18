@@ -3,14 +3,24 @@ import { useAppStore } from '../store/useAppStore'
 import { worldToScreen } from '../canvas/ViewportMatrix'
 import { measureTextElement } from '../canvas/textMetrics'
 
+function wrapSelection(ta: HTMLTextAreaElement, marker: string, value: string, setValue: (v: string) => void) {
+  const start = ta.selectionStart ?? 0
+  const end = ta.selectionEnd ?? 0
+  const newVal = value.slice(0, start) + marker + value.slice(start, end) + marker + value.slice(end)
+  setValue(newVal)
+  requestAnimationFrame(() => {
+    ta.selectionStart = start + marker.length
+    ta.selectionEnd = end + marker.length
+  })
+}
+
 export function RenameInput() {
   const { renamingId, closeRename, elements, updateElement, viewport } = useAppStore()
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
   const [value, setValue] = useState('')
+  const committedRef = useRef(false)
 
   const el = renamingId ? elements.find((e) => e.id === renamingId) : null
-
-  const committedRef = useRef(false)
 
   useEffect(() => {
     if (!el) return
@@ -42,9 +52,6 @@ export function RenameInput() {
     closeRename()
   }
 
-  // Position the input at the top-center of the element in screen space
-  const screenPos = worldToScreen(el.x + el.width / 2, el.y, viewport)
-
   const sharedInputStyle = {
     background: 'var(--surface-overlay)',
     border: '1px solid var(--accent-border)',
@@ -55,28 +62,24 @@ export function RenameInput() {
     boxShadow: 'var(--shadow-input)',
   }
 
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        left: screenPos.x,
-        top: screenPos.y - 8,
-        transform: 'translate(-50%, -100%)',
-        zIndex: 200,
-      }}
-    >
-      {el.type === 'text' ? (
+  if (el.type === 'text') {
+    // Anchor to element's top-left so resize grows downward naturally
+    const screenPos = worldToScreen(el.x, el.y, viewport)
+    return (
+      <div style={{ position: 'fixed', left: screenPos.x, top: screenPos.y, zIndex: 200 }}>
         <textarea
           ref={inputRef as React.RefObject<HTMLTextAreaElement>}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             e.stopPropagation()
-            if (e.key === 'Escape') closeRename()
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); confirm() }
+            if (e.key === 'Escape') { closeRename(); return }
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); confirm(); return }
+            if ((e.metaKey || e.ctrlKey) && e.key === 'b') { e.preventDefault(); wrapSelection(e.currentTarget, '**', value, setValue); return }
+            if ((e.metaKey || e.ctrlKey) && e.key === 'i') { e.preventDefault(); wrapSelection(e.currentTarget, '*', value, setValue); return }
           }}
           onBlur={confirm}
-          placeholder={'Edit text…\n(⌘↵ to confirm)'}
+          placeholder={'Edit text…\n(⌘↵ to confirm, ⌘B bold, ⌘I italic)'}
           style={{
             ...sharedInputStyle,
             fontSize: el.fontSize,
@@ -88,27 +91,33 @@ export function RenameInput() {
             display: 'block',
           }}
         />
-      ) : (
-        <input
-          ref={inputRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            e.stopPropagation()
-            if (e.key === 'Enter') confirm()
-            if (e.key === 'Escape') closeRename()
-          }}
-          onBlur={confirm}
-          placeholder={el.type === 'icon' ? 'Label…' : 'Name…'}
-          style={{
-            ...sharedInputStyle,
-            fontSize: 13,
-            padding: '4px 10px',
-            minWidth: 140,
-            textAlign: 'center',
-          }}
-        />
-      )}
+      </div>
+    )
+  }
+
+  // Non-text elements: position above the element top-center
+  const screenPos = worldToScreen(el.x + el.width / 2, el.y, viewport)
+  return (
+    <div style={{ position: 'fixed', left: screenPos.x, top: screenPos.y - 8, transform: 'translate(-50%, -100%)', zIndex: 200 }}>
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          e.stopPropagation()
+          if (e.key === 'Enter') confirm()
+          if (e.key === 'Escape') closeRename()
+        }}
+        onBlur={confirm}
+        placeholder={el.type === 'icon' ? 'Label…' : 'Name…'}
+        style={{
+          ...sharedInputStyle,
+          fontSize: 13,
+          padding: '4px 10px',
+          minWidth: 140,
+          textAlign: 'center',
+        }}
+      />
     </div>
   )
 }

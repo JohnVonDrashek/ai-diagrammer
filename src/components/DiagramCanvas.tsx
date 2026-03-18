@@ -86,7 +86,21 @@ function TextInputOverlay() {
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Escape') { closeTextInput(); return }
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); confirm() }
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); confirm(); return }
+          if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+            e.preventDefault()
+            const ta = e.currentTarget; const s = ta.selectionStart ?? 0; const en = ta.selectionEnd ?? 0
+            const nv = value.slice(0, s) + '**' + value.slice(s, en) + '**' + value.slice(en)
+            setValue(nv); requestAnimationFrame(() => { ta.selectionStart = s + 2; ta.selectionEnd = en + 2 })
+            return
+          }
+          if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+            e.preventDefault()
+            const ta = e.currentTarget; const s = ta.selectionStart ?? 0; const en = ta.selectionEnd ?? 0
+            const nv = value.slice(0, s) + '*' + value.slice(s, en) + '*' + value.slice(en)
+            setValue(nv); requestAnimationFrame(() => { ta.selectionStart = s + 1; ta.selectionEnd = en + 1 })
+            return
+          }
         }}
         onBlur={confirm}
         placeholder={'Type text…\n(⌘↵ to confirm)'}
