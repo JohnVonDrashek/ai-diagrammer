@@ -1,19 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
-import { useAppStore, selectResolvedTheme } from '../store/useAppStore'
+import { useAppStore } from '../store/useAppStore'
 import { worldToScreen } from '../canvas/ViewportMatrix'
 import { measureTextElement } from '../canvas/textMetrics'
 
 export function RenameInput() {
   const { renamingId, closeRename, elements, updateElement, viewport } = useAppStore()
-  const theme = useAppStore(selectResolvedTheme)
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
   const [value, setValue] = useState('')
 
   const el = renamingId ? elements.find((e) => e.id === renamingId) : null
 
+  const committedRef = useRef(false)
+
   useEffect(() => {
     if (!el) return
-    // Seed with current label/text
+    committedRef.current = false
     const current =
       el.type === 'text' ? el.text
       : el.type === 'box' ? el.text
@@ -23,10 +24,6 @@ export function RenameInput() {
   }, [renamingId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!el || !renamingId) return null
-
-  const committedRef = useRef(false)
-
-  useEffect(() => { committedRef.current = false }, [renamingId])
 
   const confirm = () => {
     if (committedRef.current) return
