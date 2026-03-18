@@ -1,54 +1,59 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { worldToScreen } from '../canvas/ViewportMatrix'
 import { measureTextElement } from '../canvas/textMetrics'
 import { FormatBar } from './FormatBar'
-
+import { markdownToHtml, htmlToMarkdown } from '../utils/markdownHtml'
 
 export function RenameInput() {
   const { renamingId, closeRename, elements, updateElement, viewport } = useAppStore()
-  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<HTMLDivElement>(null)
   const [value, setValue] = useState('')
   const committedRef = useRef(false)
-  const taHistoryRef = useRef<string[]>([])
 
   const el = renamingId ? elements.find((e) => e.id === renamingId) : null
-
-  const taRef = inputRef as React.RefObject<HTMLTextAreaElement>
-
-  const applyChange = useCallback((newVal: string, selStart: number, selEnd: number) => {
-    taHistoryRef.current = [...taHistoryRef.current, value]
-    setValue(newVal)
-    requestAnimationFrame(() => {
-      const ta = taRef.current
-      if (ta) { ta.focus(); ta.selectionStart = selStart; ta.selectionEnd = selEnd }
-    })
-  }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!el) return
     committedRef.current = false
-    taHistoryRef.current = []
-    const current =
-      el.type === 'text' ? el.text
-      : el.type === 'box' ? el.text
-      : (el.label ?? '')
-    setValue(current)
-    setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select() }, 30)
+    if (el.type === 'text') {
+      setTimeout(() => {
+        if (editorRef.current) {
+          editorRef.current.innerHTML = markdownToHtml(el.text)
+          editorRef.current.focus()
+          // Select all
+          const range = document.createRange()
+          range.selectNodeContents(editorRef.current)
+          window.getSelection()?.removeAllRanges()
+          window.getSelection()?.addRange(range)
+        }
+      }, 30)
+    } else {
+      const current = el.type === 'box' ? el.text : (el.label ?? '')
+      setValue(current)
+      setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select() }, 30)
+    }
   }, [renamingId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!el || !renamingId) return null
 
-  const confirm = () => {
+  const confirmText = () => {
+    if (committedRef.current) return
+    committedRef.current = true
+    const md = htmlToMarkdown(editorRef.current?.innerHTML ?? '')
+    if (md.trim()) {
+      const { width, height } = measureTextElement(md, el.fontSize)
+      updateElement(renamingId, { text: md, width, height } as never)
+    }
+    closeRename()
+  }
+
+  const confirmOther = () => {
     if (committedRef.current) return
     committedRef.current = true
     const trimmed = value.trim()
-    if (el.type === 'text') {
-      if (trimmed) {
-        const { width, height } = measureTextElement(trimmed, el.fontSize)
-        updateElement(renamingId, { text: trimmed, width, height } as never)
-      }
-    } else if (el.type === 'box') {
+    if (el.type === 'box') {
       updateElement(renamingId, { text: trimmed } as never)
     } else {
       updateElement(renamingId, { label: trimmed || undefined })
@@ -67,42 +72,19 @@ export function RenameInput() {
   }
 
   if (el.type === 'text') {
-    // Anchor to element's top-left so resize grows downward naturally
     const screenPos = worldToScreen(el.x, el.y, viewport)
     return (
       <div style={{ position: 'fixed', left: screenPos.x, top: screenPos.y, zIndex: 200 }}>
-        <FormatBar value={value} applyChange={applyChange} taRef={taRef} hint="⌘↵ confirm" />
-        <textarea
-          ref={taRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
+        <FormatBar editorRef={editorRef} hint="⌘↵ confirm" />
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
           onKeyDown={(e) => {
-            e.stopPropagation()
             if (e.key === 'Escape') { closeRename(); return }
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); confirm(); return }
-            if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
-              e.preventDefault()
-              if (taHistoryRef.current.length > 0) {
-                setValue(taHistoryRef.current[taHistoryRef.current.length - 1])
-                taHistoryRef.current = taHistoryRef.current.slice(0, -1)
-              }
-              return
-            }
-            if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
-              e.preventDefault()
-              const ta = e.currentTarget; const s = ta.selectionStart ?? 0; const en = ta.selectionEnd ?? 0
-              applyChange(value.slice(0, s) + '**' + value.slice(s, en) + '**' + value.slice(en), s + 2, en + 2)
-              return
-            }
-            if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
-              e.preventDefault()
-              const ta = e.currentTarget; const s = ta.selectionStart ?? 0; const en = ta.selectionEnd ?? 0
-              applyChange(value.slice(0, s) + '*' + value.slice(s, en) + '*' + value.slice(en), s + 1, en + 1)
-              return
-            }
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); confirmText() }
           }}
-          onBlur={confirm}
-          placeholder={'Edit text…'}
+          onBlur={confirmText}
           style={{
             ...sharedInputStyle,
             fontSize: el.fontSize,
@@ -110,9 +92,12 @@ export function RenameInput() {
             padding: '8px 12px',
             width: 360,
             minHeight: 160,
-            resize: 'both',
-            display: 'block',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            overflowY: 'auto',
+            cursor: 'text',
           }}
+          data-placeholder="Edit text…"
         />
       </div>
     )
@@ -128,10 +113,10 @@ export function RenameInput() {
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
           e.stopPropagation()
-          if (e.key === 'Enter') confirm()
+          if (e.key === 'Enter') confirmOther()
           if (e.key === 'Escape') closeRename()
         }}
-        onBlur={confirm}
+        onBlur={confirmOther}
         placeholder={el.type === 'icon' ? 'Label…' : 'Name…'}
         style={{
           ...sharedInputStyle,

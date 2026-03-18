@@ -8,6 +8,7 @@ import { loadIcon } from '../icons/iconifyClient'
 import type { IconElement, TextElement, BoxElement } from '../store/types'
 import { measureTextElement } from '../canvas/textMetrics'
 import { FormatBar } from './FormatBar'
+import { markdownToHtml, htmlToMarkdown } from '../utils/markdownHtml'
 
 function genId() {
   return Math.random().toString(36).slice(2, 10)
@@ -50,29 +51,18 @@ function collectContainedIds(seedIds: string[], elements: import('../store/types
 
 function TextInputOverlay() {
   const { textInputPos, closeTextInput, viewport, addElement, setSelected, defaultFontSize } = useAppStore()
-  const [value, setValue] = useState('')
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const editorRef = useRef<HTMLDivElement>(null)
   const committedRef = useRef(false)
-  const taHistoryRef = useRef<string[]>([])
-
-  const applyChange = useCallback((newVal: string, selStart: number, selEnd: number) => {
-    taHistoryRef.current = [...taHistoryRef.current, value]
-    setValue(newVal)
-    requestAnimationFrame(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus()
-        textareaRef.current.selectionStart = selStart
-        textareaRef.current.selectionEnd = selEnd
-      }
-    })
-  }, [value])
 
   useEffect(() => {
     if (textInputPos) {
-      setValue('')
       committedRef.current = false
-      taHistoryRef.current = []
-      setTimeout(() => textareaRef.current?.focus(), 30)
+      setTimeout(() => {
+        if (editorRef.current) {
+          editorRef.current.innerHTML = ''
+          editorRef.current.focus()
+        }
+      }, 30)
     }
   }, [textInputPos])
 
@@ -81,67 +71,52 @@ function TextInputOverlay() {
   const confirm = () => {
     if (committedRef.current) return
     committedRef.current = true
-    if (!value.trim()) { closeTextInput(); return }
+    const md = htmlToMarkdown(editorRef.current?.innerHTML ?? '')
+    if (!md.trim()) { closeTextInput(); return }
     const worldPos = screenToWorld(textInputPos.screenX, textInputPos.screenY, viewport)
-    const { width, height } = measureTextElement(value, defaultFontSize)
+    const { width, height } = measureTextElement(md, defaultFontSize)
     const el: TextElement = {
       id: genId(), type: 'text',
       x: worldPos.x, y: worldPos.y,
       width, height,
-      text: value, fontSize: defaultFontSize,
+      text: md, fontSize: defaultFontSize,
     }
     addElement(el); setSelected(el.id); closeTextInput()
   }
 
+  const editorStyle: React.CSSProperties = {
+    background: 'var(--surface-overlay)',
+    border: '1px solid var(--accent-border-strong)',
+    borderRadius: 'var(--radius-md)',
+    color: 'var(--text)',
+    fontSize: defaultFontSize,
+    fontFamily: 'var(--font-ui)',
+    lineHeight: 1.5,
+    padding: '8px 12px',
+    outline: 'none',
+    width: 360,
+    minHeight: 160,
+    boxShadow: 'var(--shadow-input)',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    overflowY: 'auto',
+    cursor: 'text',
+  }
+
   return (
     <div style={{ position: 'fixed', left: textInputPos.screenX, top: textInputPos.screenY, zIndex: 200, transform: 'translate(-8px, -8px)' }}>
-      <FormatBar value={value} applyChange={applyChange} taRef={textareaRef} hint="⌘↵ confirm" />
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
+      <FormatBar editorRef={editorRef} hint="⌘↵ confirm" />
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
         onKeyDown={(e) => {
           if (e.key === 'Escape') { closeTextInput(); return }
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); confirm(); return }
-          if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
-            e.preventDefault(); e.stopPropagation()
-            if (taHistoryRef.current.length > 0) {
-              setValue(taHistoryRef.current[taHistoryRef.current.length - 1])
-              taHistoryRef.current = taHistoryRef.current.slice(0, -1)
-            }
-            return
-          }
-          if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
-            e.preventDefault()
-            const ta = e.currentTarget; const s = ta.selectionStart ?? 0; const en = ta.selectionEnd ?? 0
-            applyChange(value.slice(0, s) + '**' + value.slice(s, en) + '**' + value.slice(en), s + 2, en + 2)
-            return
-          }
-          if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
-            e.preventDefault()
-            const ta = e.currentTarget; const s = ta.selectionStart ?? 0; const en = ta.selectionEnd ?? 0
-            applyChange(value.slice(0, s) + '*' + value.slice(s, en) + '*' + value.slice(en), s + 1, en + 1)
-            return
-          }
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); confirm() }
         }}
         onBlur={confirm}
-        placeholder={'Type text…'}
-        style={{
-          background: 'var(--surface-overlay)',
-          border: '1px solid var(--accent-border-strong)',
-          borderRadius: 'var(--radius-md)',
-          color: 'var(--text)',
-          fontSize: defaultFontSize,
-          fontFamily: 'var(--font-ui)',
-          lineHeight: 1.5,
-          padding: '8px 12px',
-          outline: 'none',
-          width: 360,
-          minHeight: 160,
-          resize: 'both',
-          boxShadow: 'var(--shadow-input)',
-          display: 'block',
-        }}
+        style={editorStyle}
+        data-placeholder="Type text…"
       />
     </div>
   )
@@ -271,8 +246,8 @@ export function DiagramCanvas() {
       // Prevent Alt from activating the browser/OS menu bar on Windows
       if (e.key === 'Alt') { e.preventDefault(); return }
 
-      const target = e.target as Element
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
 
       if ((e.key === 'z' || e.key === 'Z') && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
         e.preventDefault()

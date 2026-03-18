@@ -1,43 +1,28 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 
 interface FormatBarProps {
-  value: string
-  applyChange: (newVal: string, selStart: number, selEnd: number) => void
-  taRef: React.RefObject<HTMLTextAreaElement>
+  editorRef: React.RefObject<HTMLDivElement>
   hint?: string
 }
 
-function applyMarker(
-  marker: string,
-  taRef: React.RefObject<HTMLTextAreaElement>,
-  value: string,
-  applyChange: (newVal: string, selStart: number, selEnd: number) => void
-) {
-  const ta = taRef.current
-  if (!ta) return
-  const s = ta.selectionStart ?? 0
-  const e = ta.selectionEnd ?? 0
-  const newVal = value.slice(0, s) + marker + value.slice(s, e) + marker + value.slice(e)
-  applyChange(newVal, s + marker.length, e + marker.length)
-}
-
-export function FormatBar({ value, applyChange, taRef, hint }: FormatBarProps) {
+export function FormatBar({ editorRef, hint }: FormatBarProps) {
   const [boldActive, setBoldActive] = useState(false)
   const [italicActive, setItalicActive] = useState(false)
 
-  const onSelect = useCallback(() => {
-    const ta = taRef.current
-    if (!ta) return
-    const s = ta.selectionStart ?? 0
-    const e = ta.selectionEnd ?? 0
-    const sel = value.slice(s, e)
-    const before2 = value.slice(Math.max(0, s - 2), s)
-    const after2 = value.slice(e, e + 2)
-    const before1 = value.slice(Math.max(0, s - 1), s)
-    const after1 = value.slice(e, e + 1)
-    setBoldActive((before2 === '**' && after2 === '**') || (sel.startsWith('**') && sel.endsWith('**')))
-    setItalicActive((before1 === '*' && after1 === '*' && before2 !== '**') || (sel.startsWith('*') && sel.endsWith('*')))
-  }, [value, taRef])
+  useEffect(() => {
+    const update = () => {
+      setBoldActive(document.queryCommandState('bold'))
+      setItalicActive(document.queryCommandState('italic'))
+    }
+    document.addEventListener('selectionchange', update)
+    return () => document.removeEventListener('selectionchange', update)
+  }, [])
+
+  const apply = (e: React.MouseEvent, cmd: string) => {
+    e.preventDefault()
+    editorRef.current?.focus()
+    document.execCommand(cmd)
+  }
 
   const btnStyle = (active: boolean): React.CSSProperties => ({
     background: active ? 'var(--accent-bg)' : 'none',
@@ -66,16 +51,8 @@ export function FormatBar({ value, applyChange, taRef, hint }: FormatBarProps) {
         backdropFilter: 'var(--backdrop-blur)',
       }}
     >
-      <button
-        style={{ ...btnStyle(boldActive), fontWeight: 700 }}
-        onMouseDown={(e) => { e.preventDefault(); applyMarker('**', taRef, value, applyChange) }}
-        title="Bold (⌘B)"
-      >B</button>
-      <button
-        style={{ ...btnStyle(italicActive), fontStyle: 'italic' }}
-        onMouseDown={(e) => { e.preventDefault(); applyMarker('*', taRef, value, applyChange) }}
-        title="Italic (⌘I)"
-      ><em>I</em></button>
+      <button style={{ ...btnStyle(boldActive), fontWeight: 700 }} onMouseDown={(e) => apply(e, 'bold')} title="Bold (⌘B)">B</button>
+      <button style={{ ...btnStyle(italicActive), fontStyle: 'italic' }} onMouseDown={(e) => apply(e, 'italic')} title="Italic (⌘I)"><em>I</em></button>
       {hint && (
         <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-faint)', fontFamily: 'var(--font-ui)', paddingLeft: 8 }}>
           {hint}
