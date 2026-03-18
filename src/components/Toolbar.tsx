@@ -217,7 +217,7 @@ export function Toolbar() {
         active={theme !== 'system'}
       >
         <ThemeIcon theme={theme} resolvedTheme={resolvedTheme} />
-        <span style={{ fontSize: 10 }}>{theme}</span>
+        <span style={{ fontSize: 10, minWidth: 36, textAlign: 'left' }}>{theme}</span>
       </ToolBtn>
 
       {/* Export / Import */}
