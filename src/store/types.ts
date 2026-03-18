@@ -31,10 +31,13 @@ export interface TextElement extends BaseElement {
   fontSize: number
 }
 
+export type BoxStyle = 'solid' | 'dashed' | 'filled'
+
 export interface BoxElement extends BaseElement {
   type: 'box'
   text: string
   fontSize: number
+  style?: BoxStyle
 }
 
 export type DiagramElement = IconElement | TextElement | BoxElement

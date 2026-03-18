@@ -1,6 +1,22 @@
 import { create } from 'zustand'
 import type { ViewportState, DiagramElement, ElementId, ToolMode, Theme, ConnectionElement, Diagram } from './types'
 
+// ── History helper ────────────────────────────────────────────────────────────
+
+const MAX_HISTORY = 100
+
+interface HistoryEntry {
+  elements: DiagramElement[]
+  connections: ConnectionElement[]
+}
+
+function withHistory(s: AppState, patch: Partial<AppState>): Partial<AppState> {
+  return {
+    history: [...s.history.slice(-(MAX_HISTORY - 1)), { elements: s.elements, connections: s.connections }],
+    ...patch,
+  }
+}
+
 // ── System theme ──────────────────────────────────────────────────────────────
 
 function getSystemTheme(): 'dark' | 'light' {
@@ -69,6 +85,8 @@ const EPHEMERAL_RESET = {
   textInputPos: null,
   isColorPickerOpen: false,
   renamingId: null,
+  history: [] as HistoryEntry[],
+  contextMenuPos: null as { x: number; y: number } | null,
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -85,6 +103,7 @@ interface AppState {
   selectedConnectionId: ElementId | null
   toolMode: ToolMode
   rotationEnabled: boolean
+  hierarchyMove: boolean
   defaultFontSize: number
   // Theme
   theme: Theme
@@ -101,6 +120,8 @@ interface AppState {
   renamingId: string | null
   connectingFromId: ElementId | null
   connectionPreviewPos: { x: number; y: number } | null
+  history: HistoryEntry[]
+  contextMenuPos: { x: number; y: number } | null
 
   // Diagram tabs
   createDiagram: () => void
@@ -121,6 +142,11 @@ interface AppState {
   updateConnection: (id: ElementId, partial: Partial<Pick<ConnectionElement, 'label' | 'color' | 'style'>>) => void
   setToolMode: (mode: ToolMode) => void
   toggleRotation: () => void
+  toggleHierarchyMove: () => void
+  pushHistory: () => void
+  undo: () => void
+  openContextMenu: (x: number, y: number) => void
+  closeContextMenu: () => void
   setDefaultFontSize: (size: number) => void
   // Theme
   toggleTheme: () => void
@@ -133,6 +159,7 @@ interface AppState {
   closeTextInput: () => void
   copySelected: () => void
   paste: () => void
+  pasteAt: (worldX: number, worldY: number) => void
   openColorPicker: (x: number, y: number) => void
   closeColorPicker: () => void
   openRename: (id: string) => void
@@ -169,6 +196,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedConnectionId: null,
   toolMode: 'select',
   rotationEnabled: saved?.rotationEnabled ?? true,
+  hierarchyMove: false,
   defaultFontSize: saved?.defaultFontSize ?? 16,
   theme: saved?.theme ?? 'system',
   systemTheme: getSystemTheme(),
@@ -183,6 +211,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   renamingId: null,
   connectingFromId: null,
   connectionPreviewPos: null,
+  history: [],
+  contextMenuPos: null,
 
   // ── Diagram tabs ────────────────────────────────────────────────────────────
 
@@ -239,11 +269,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setViewport: (viewport) => set({ viewport }),
   updateViewport: (partial) => set((s) => ({ viewport: { ...s.viewport, ...partial } })),
-  addElement: (el) => set((s) => ({ elements: [...s.elements, el] })),
+  addElement: (el) => set((s) => withHistory(s, { elements: [...s.elements, el] })),
   updateElement: (id, partial) =>
     set((s) => ({ elements: s.elements.map((e) => e.id === id ? ({ ...e, ...partial } as DiagramElement) : e) })),
   deleteElement: (id) =>
-    set((s) => ({
+    set((s) => withHistory(s, {
       elements: s.elements.filter((e) => e.id !== id),
       connections: s.connections.filter((c) => c.fromId !== id && c.toId !== id),
       selectedIds: s.selectedIds.filter((sid) => sid !== id),
@@ -253,15 +283,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   deleteSelected: () =>
     set((s) => {
       const ids = new Set(s.selectedIds)
-      return {
+      return withHistory(s, {
         elements: s.elements.filter((e) => !ids.has(e.id)),
         connections: s.connections.filter((c) => !ids.has(c.fromId) && !ids.has(c.toId)),
         selectedIds: [],
-      }
+      })
     }),
   setSelectedConnection: (selectedConnectionId) => set({ selectedConnectionId, selectedIds: [] }),
   updateConnection: (id, partial) =>
-    set((s) => ({ connections: s.connections.map((c) => c.id === id ? { ...c, ...partial } : c) })),
+    set((s) => withHistory(s, { connections: s.connections.map((c) => c.id === id ? { ...c, ...partial } : c) })),
   setToolMode: (toolMode) => set({ toolMode }),
 
   toggleRotation: () =>
@@ -270,6 +300,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       setTimeout(() => flushSave({ ...s, ...next$ }), 0)
       return next$
     }),
+  toggleHierarchyMove: () => set((s) => ({ hierarchyMove: !s.hierarchyMove })),
+  pushHistory: () =>
+    set((s) => ({
+      history: [...s.history.slice(-(MAX_HISTORY - 1)), { elements: s.elements, connections: s.connections }],
+    })),
+  undo: () =>
+    set((s) => {
+      if (s.history.length === 0) return {}
+      const prev = s.history[s.history.length - 1]
+      return {
+        elements: prev.elements,
+        connections: prev.connections,
+        history: s.history.slice(0, -1),
+        selectedIds: [],
+        selectedConnectionId: null,
+      }
+    }),
+  openContextMenu: (x, y) => set({ contextMenuPos: { x, y } }),
+  closeContextMenu: () => set({ contextMenuPos: null }),
   setDefaultFontSize: (size) =>
     set((s) => {
       const next$ = { defaultFontSize: Math.max(8, Math.min(96, size)) }
@@ -312,7 +361,27 @@ export const useAppStore = create<AppState>((set, get) => ({
         x: el.x + 20,
         y: el.y + 20,
       }))
-      return { elements: [...s.elements, ...newEls], selectedIds: newEls.map((e) => e.id) }
+      return withHistory(s, { elements: [...s.elements, ...newEls], selectedIds: newEls.map((e) => e.id) })
+    }),
+  pasteAt: (worldX, worldY) =>
+    set((s) => {
+      if (s.clipboard.length === 0) return {}
+      // Compute bounding box centre of clipboard items
+      const minX = Math.min(...s.clipboard.map((e) => e.x))
+      const minY = Math.min(...s.clipboard.map((e) => e.y))
+      const maxX = Math.max(...s.clipboard.map((e) => e.x + e.width))
+      const maxY = Math.max(...s.clipboard.map((e) => e.y + e.height))
+      const cx = (minX + maxX) / 2
+      const cy = (minY + maxY) / 2
+      const dx = worldX - cx
+      const dy = worldY - cy
+      const newEls: DiagramElement[] = s.clipboard.map((el) => ({
+        ...el,
+        id: Math.random().toString(36).slice(2, 10),
+        x: el.x + dx,
+        y: el.y + dy,
+      }))
+      return withHistory(s, { elements: [...s.elements, ...newEls], selectedIds: newEls.map((e) => e.id) })
     }),
   openColorPicker: (x, y) => set({ isColorPickerOpen: true, colorPickerPos: { x, y } }),
   closeColorPicker: () => set({ isColorPickerOpen: false }),
@@ -321,11 +390,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ── Connections ─────────────────────────────────────────────────────────────
 
-  addConnection: (c) => set((s) => ({ connections: [...s.connections, c] })),
+  addConnection: (c) => set((s) => withHistory(s, { connections: [...s.connections, c] })),
   deleteConnection: (id) =>
-    set((s) => ({ connections: s.connections.filter((c) => c.id !== id) })),
+    set((s) => withHistory(s, { connections: s.connections.filter((c) => c.id !== id) })),
   reverseConnection: (id) =>
-    set((s) => ({
+    set((s) => withHistory(s, {
       connections: s.connections.map((c) =>
         c.id === id ? { ...c, fromId: c.toId, toId: c.fromId } : c
       ),
@@ -341,7 +410,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const exists = connections.some((c) => c.fromId === connectingFromId && c.toId === toId)
     if (!exists) {
       const newConn: ConnectionElement = { id: Math.random().toString(36).slice(2, 10), type: 'connection', fromId: connectingFromId, toId }
-      set((s) => ({ connections: [...s.connections, newConn] }))
+      set((s) => withHistory(s, { connections: [...s.connections, newConn] }))
     }
     set({ connectingFromId: null, connectionPreviewPos: null, toolMode: 'select' })
   },

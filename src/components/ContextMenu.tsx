@@ -1,0 +1,305 @@
+import { useEffect, useRef } from 'react'
+import { useAppStore, selectResolvedTheme } from '../store/useAppStore'
+import { screenToWorld, resetRotation } from '../canvas/ViewportMatrix'
+import type { BoxElement } from '../store/types'
+
+function genId() {
+  return Math.random().toString(36).slice(2, 10)
+}
+
+interface MenuItem {
+  keys: string[]
+  description: string
+  highlight?: boolean
+  action?: () => void
+}
+
+function buildItems(store: ReturnType<typeof useAppStore.getState>, pos: { x: number; y: number }): { modeLabel: string; items: MenuItem[] } {
+  const { selectedIds, selectedConnectionId, connectingFromId, toolMode, elements, connections, viewport, defaultFontSize } = store
+
+  const close = () => store.closeContextMenu()
+
+  if (selectedConnectionId) {
+    const conn = connections.find((c) => c.id === selectedConnectionId)
+    return {
+      modeLabel: 'Connection selected',
+      items: [
+        {
+          keys: ['D'], description: 'Reverse direction', highlight: true,
+          action: () => { store.reverseConnection(selectedConnectionId); close() },
+        },
+        {
+          keys: ['S'], description: 'Cycle style',
+          action: () => {
+            const styles = ['solid', 'dashed', 'animated'] as const
+            const next = styles[(styles.indexOf(conn?.style ?? 'solid') + 1) % styles.length]
+            store.updateConnection(selectedConnectionId, { style: next }); close()
+          },
+        },
+        {
+          keys: ['C'], description: 'Change color',
+          action: () => { store.openColorPicker(pos.x, pos.y); close() },
+        },
+        {
+          keys: ['T'], description: 'Edit label',
+          action: () => {
+            const label = prompt('Connection label (leave blank to clear):') ?? null
+            if (label !== null) store.updateConnection(selectedConnectionId, { label: label || undefined })
+            close()
+          },
+        },
+        {
+          keys: ['⌫'], description: 'Delete',
+          action: () => { store.deleteConnection(selectedConnectionId); close() },
+        },
+        {
+          keys: ['Esc'], description: 'Deselect',
+          action: () => { store.setSelectedConnection(null); close() },
+        },
+      ],
+    }
+  }
+
+  if (connectingFromId || toolMode === 'connect') {
+    return {
+      modeLabel: 'Connect mode',
+      items: [
+        { keys: ['click'], description: 'Connect to element', highlight: true },
+        { keys: ['Esc'], description: 'Cancel', action: () => { store.cancelConnecting(); close() } },
+      ],
+    }
+  }
+
+  if (toolMode === 'text') {
+    return {
+      modeLabel: 'Text mode',
+      items: [
+        { keys: ['click'], description: 'Place text here', highlight: true },
+        { keys: ['Esc'], description: 'Cancel', action: () => { store.closeTextInput(); close() } },
+      ],
+    }
+  }
+
+  if (selectedIds.length > 0) {
+    const primaryId = selectedIds[0]
+    const el = elements.find((e) => e.id === primaryId)
+    const isIcon = el?.type === 'icon'
+    const isBox = el?.type === 'box'
+    const isSingle = selectedIds.length === 1
+
+    return {
+      modeLabel: selectedIds.length > 1 ? `${selectedIds.length} selected` : 'Selected',
+      items: [
+        {
+          keys: ['⌘C'], description: 'Copy',
+          action: () => { store.copySelected(); close() },
+        },
+        {
+          keys: ['⌘V'], description: 'Paste',
+          action: () => {
+            const cv = document.querySelector('canvas')
+            const r = cv?.getBoundingClientRect() ?? { left: 0, top: 0 }
+            const wp = screenToWorld(pos.x - r.left, pos.y - r.top, viewport)
+            store.pasteAt(wp.x, wp.y); close()
+          },
+        },
+        {
+          keys: ['⌘D'], description: 'Duplicate', highlight: true,
+          action: () => { store.copySelected(); store.paste(); close() },
+        },
+        ...(isSingle ? [{
+          keys: ['R'], description: 'Rename', highlight: true,
+          action: () => { store.openRename(primaryId); close() },
+        }] : []),
+        ...(isIcon ? [{
+          keys: ['S'], description: 'Swap icon image',
+          action: () => { store.openIconSearch(undefined, primaryId); close() },
+        }] : []),
+        ...(isBox ? [{
+          keys: ['S'], description: 'Cycle style',
+          action: () => {
+            const boxEl = el as BoxElement
+            const styles = ['solid', 'dashed', 'filled'] as const
+            const next = styles[(styles.indexOf(boxEl.style ?? 'solid') + 1) % styles.length]
+            store.updateElement(primaryId, { style: next } as Partial<BoxElement>)
+            close()
+          },
+        }] : []),
+        {
+          keys: ['C'], description: 'Change color',
+          action: () => { store.openColorPicker(pos.x, pos.y); close() },
+        },
+        ...(isSingle ? [{
+          keys: ['E'], description: 'Connect edge',
+          action: () => { store.startConnecting(primaryId); close() },
+        }] : []),
+        {
+          keys: ['⌫'], description: 'Delete',
+          action: () => { store.deleteSelected(); close() },
+        },
+        {
+          keys: ['Esc'], description: 'Deselect',
+          action: () => { store.setSelectedIds([]); close() },
+        },
+      ],
+    }
+  }
+
+  // Canvas — place actions at the right-click world position
+  const canvas = document.querySelector('canvas')
+  const rect = canvas?.getBoundingClientRect() ?? { left: 0, top: 0 }
+  const canvasX = pos.x - rect.left
+  const canvasY = pos.y - rect.top
+  const worldPos = screenToWorld(canvasX, canvasY, viewport)
+
+  return {
+    modeLabel: 'Canvas',
+    items: [
+      ...(store.clipboard.length > 0 ? [{
+        keys: ['⌘V'], description: 'Paste', highlight: true,
+        action: () => { store.pasteAt(worldPos.x, worldPos.y); close() },
+      }] : []),
+      {
+        keys: ['I', '/'], description: 'Add icon',
+        action: () => { store.openIconSearch({ x: worldPos.x, y: worldPos.y }); close() },
+      },
+      {
+        keys: ['T'], description: 'Add text',
+        action: () => { store.openTextInput(canvasX, canvasY); close() },
+      },
+      {
+        keys: ['B'], description: 'Add box',
+        action: () => {
+          const el: BoxElement = {
+            id: genId(), type: 'box',
+            x: worldPos.x - 120, y: worldPos.y - 80,
+            width: 240, height: 160,
+            text: '', fontSize: Math.max(11, defaultFontSize - 2),
+          }
+          store.addElement(el); store.setSelected(el.id); close()
+        },
+      },
+      { keys: ['scroll'], description: 'Pan' },
+      { keys: ['pinch'], description: 'Zoom' },
+      { keys: ['⌥ + scroll'], description: 'Rotate' },
+      {
+        keys: ['O'], description: 'Reset rotation',
+        action: () => {
+          store.setViewport(resetRotation(viewport, canvas?.offsetWidth ?? 800, canvas?.offsetHeight ?? 600))
+          close()
+        },
+      },
+    ],
+  }
+}
+
+export function ContextMenu() {
+  const store = useAppStore()
+  const contextMenuPos = useAppStore((s) => s.contextMenuPos)
+  const closeContextMenu = useAppStore((s) => s.closeContextMenu)
+  const theme = useAppStore(selectResolvedTheme)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Close on outside pointer-down
+  useEffect(() => {
+    if (!contextMenuPos) return
+    const handler = (e: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        closeContextMenu()
+      }
+    }
+    window.addEventListener('pointerdown', handler)
+    return () => window.removeEventListener('pointerdown', handler)
+  }, [contextMenuPos, closeContextMenu])
+
+  if (!contextMenuPos) return null
+
+  const isDark = theme === 'dark'
+  const { modeLabel, items } = buildItems(useAppStore.getState(), contextMenuPos)
+
+  // Keep menu within viewport
+  const menuW = 200
+  const menuH = items.length * 30 + 40
+  const x = Math.min(contextMenuPos.x, window.innerWidth - menuW - 8)
+  const y = Math.min(contextMenuPos.y, window.innerHeight - menuH - 8)
+
+  const bg = isDark ? 'rgba(15,15,25,0.96)' : 'rgba(255,255,255,0.97)'
+  const border = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+  const labelCol = isDark ? 'rgba(226,232,240,0.35)' : 'rgba(15,23,42,0.4)'
+  const textCol = isDark ? 'rgba(226,232,240,0.6)' : 'rgba(15,23,42,0.65)'
+  const kbdBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
+  const kbdCol = isDark ? 'rgba(226,232,240,0.75)' : 'rgba(15,23,42,0.75)'
+  const hoverBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'
+
+  return (
+    <div
+      ref={menuRef}
+      style={{
+        position: 'fixed',
+        left: x,
+        top: y,
+        zIndex: 300,
+        background: bg,
+        border: `1px solid ${border}`,
+        borderRadius: 10,
+        padding: '8px 0',
+        backdropFilter: 'blur(16px)',
+        boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.12)',
+        minWidth: menuW,
+        userSelect: 'none',
+      }}
+    >
+      <div style={{ fontSize: 10, color: labelCol, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 12px 8px' }}>
+        {modeLabel}
+      </div>
+
+      {items.map((item, i) => {
+        const isActionable = !!item.action
+        return (
+          <div
+            key={i}
+            onClick={item.action}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+              padding: '4px 12px',
+              cursor: isActionable ? 'pointer' : 'default',
+              opacity: isActionable ? 1 : 0.45,
+              borderRadius: 0,
+              transition: 'background 0.08s',
+            }}
+            onMouseEnter={(e) => { if (isActionable) (e.currentTarget as HTMLDivElement).style.background = hoverBg }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+          >
+            <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+              {item.keys.map((k, ki) => (
+                <kbd
+                  key={ki}
+                  style={{
+                    background: item.highlight ? 'rgba(99,102,241,0.18)' : kbdBg,
+                    border: item.highlight ? '1px solid rgba(99,102,241,0.35)' : `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                    borderRadius: 4,
+                    color: item.highlight ? '#a5b4fc' : kbdCol,
+                    fontSize: 11,
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                    padding: '1px 6px',
+                    display: 'inline-block',
+                    lineHeight: '18px',
+                  }}
+                >
+                  {k}
+                </kbd>
+              ))}
+            </div>
+            <span style={{
+              fontSize: 11,
+              color: item.highlight ? (isDark ? 'rgba(226,232,240,0.8)' : 'rgba(15,23,42,0.8)') : textCol,
+              textAlign: 'right',
+            }}>
+              {item.description}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

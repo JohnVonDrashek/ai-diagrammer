@@ -6,6 +6,7 @@ import { ShortcutsHint } from './components/ShortcutsHint'
 import { ColorPicker } from './components/ColorPicker'
 import { DiagramTabs } from './components/DiagramTabs'
 import { RenameInput } from './components/RenameInput'
+import { ContextMenu } from './components/ContextMenu'
 import { useAppStore, selectResolvedTheme } from './store/useAppStore'
 
 export default function App() {
@@ -43,6 +44,7 @@ export default function App() {
       <ShortcutsHint />
       <ColorPicker />
       <RenameInput />
+      <ContextMenu />
       <DiagramTabs />
     </div>
   )

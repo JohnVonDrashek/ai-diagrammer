@@ -11,6 +11,39 @@ function genId() {
   return Math.random().toString(36).slice(2, 10)
 }
 
+// Maps resize handle index → CSS cursor
+const HANDLE_CURSORS = [
+  'nwse-resize', // 0: TL
+  'ns-resize',   // 1: TM
+  'nesw-resize', // 2: TR
+  'ew-resize',   // 3: MR
+  'nwse-resize', // 4: BR
+  'ns-resize',   // 5: BM
+  'nesw-resize', // 6: BL
+  'ew-resize',   // 7: ML
+] as const
+
+// Recursively collect IDs of elements fully contained within any box in `seedIds`
+function collectContainedIds(seedIds: string[], elements: import('../store/types').DiagramElement[]): string[] {
+  const result = new Set(seedIds)
+  const queue = [...seedIds]
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    const box = elements.find((e) => e.id === id)
+    if (!box || box.type !== 'box') continue
+    for (const el of elements) {
+      if (result.has(el.id)) continue
+      if (el.x >= box.x && el.y >= box.y &&
+          el.x + el.width <= box.x + box.width &&
+          el.y + el.height <= box.y + box.height) {
+        result.add(el.id)
+        if (el.type === 'box') queue.push(el.id)
+      }
+    }
+  }
+  return [...result]
+}
+
 // ── Text input overlay ────────────────────────────────────────────────────────
 
 function TextInputOverlay() {
@@ -69,6 +102,12 @@ export function DiagramCanvas() {
   const dprRef = useRef(window.devicePixelRatio || 1)
   const cursorPosRef = useRef({ x: 0, y: 0 })
 
+  const [boxPlacementActive, setBoxPlacementActive] = useState(false)
+  const boxPlacementActiveRef = useRef(false)
+  const boxDrawStartRef = useRef<{ screenX: number; screenY: number } | null>(null)
+  const boxDrawPreviewWorldRef = useRef<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
+  const shiftHeldRef = useRef(false)
+
   const dragStateRef = useRef<{
     kind: 'move'
     ids: string[]
@@ -87,15 +126,17 @@ export function DiagramCanvas() {
   const marqueeRef = useRef<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
 
   const {
-    viewport, elements, connections, selectedIds, selectedConnectionId, toolMode, rotationEnabled, defaultFontSize,
+    viewport, elements, connections, selectedIds, selectedConnectionId, toolMode, rotationEnabled, hierarchyMove, defaultFontSize,
     setViewport, addElement, updateElement, setSelected, setSelectedIds, setSelectedConnection,
     deleteElement, deleteSelected, deleteConnection, updateConnection,
     openIconSearch, openTextInput, closeTextInput,
     startConnecting, finishConnecting, cancelConnecting, setConnectionPreviewPos,
+    pushHistory,
     connectingFromId, connectionPreviewPos,
-    copySelected, paste, clipboard,
+    copySelected, paste, pasteAt, clipboard,
     openColorPicker, closeColorPicker,
     openRename, closeRename,
+    openContextMenu, closeContextMenu,
   } = useAppStore()
   const theme = useAppStore(selectResolvedTheme)
 
@@ -105,12 +146,34 @@ export function DiagramCanvas() {
   const toolModeRef = useRef(toolMode); toolModeRef.current = toolMode
   const themeRef = useRef(theme); themeRef.current = theme
   const rotationEnabledRef = useRef(rotationEnabled); rotationEnabledRef.current = rotationEnabled
+  const hierarchyMoveRef = useRef(hierarchyMove); hierarchyMoveRef.current = hierarchyMove
   const defaultFontSizeRef = useRef(defaultFontSize); defaultFontSizeRef.current = defaultFontSize
   const connectingFromIdRef = useRef(connectingFromId); connectingFromIdRef.current = connectingFromId
   const selectedConnectionIdRef = useRef(selectedConnectionId); selectedConnectionIdRef.current = selectedConnectionId
   const clipboardRef = useRef(clipboard); clipboardRef.current = clipboard
   const connectionPreviewPosRef = useRef(connectionPreviewPos); connectionPreviewPosRef.current = connectionPreviewPos
   const connectionsRef = useRef(connections); connectionsRef.current = connections
+
+  // Imperatively sets canvas cursor based on current mode, drag state, and hover position
+  const updateCursor = useCallback((canvasX: number, canvasY: number) => {
+    const canvas = canvasRef.current; if (!canvas) return
+    const gc = gestureRef.current
+    if (gc?.isPanning) { canvas.style.cursor = 'grabbing'; return }
+    if (gc?.isSpaceHeld) { canvas.style.cursor = gc.isSpacePanActive ? 'grabbing' : 'grab'; return }
+    if (boxPlacementActiveRef.current) { canvas.style.cursor = 'crosshair'; return }
+    if (toolModeRef.current === 'connect') { canvas.style.cursor = 'crosshair'; return }
+    if (toolModeRef.current === 'text') { canvas.style.cursor = 'text'; return }
+    const ds = dragStateRef.current
+    if (ds?.kind === 'move') { canvas.style.cursor = 'grabbing'; return }
+    if (ds?.kind === 'resize') { canvas.style.cursor = HANDLE_CURSORS[ds.handle]; return }
+    if (ds?.kind === 'marquee') { canvas.style.cursor = 'default'; return }
+    const worldPos = screenToWorld(canvasX, canvasY, vpRef.current)
+    const hit = hitTest(elementsRef.current, worldPos.x, worldPos.y, selectedIdsRef.current[0] ?? null)
+    if (hit.kind === 'handle') { canvas.style.cursor = HANDLE_CURSORS[hit.handle]; return }
+    if (hit.kind === 'element') { canvas.style.cursor = 'move'; return }
+    const connId = hitTestConnection(connectionsRef.current, elementsRef.current, worldPos.x, worldPos.y)
+    canvas.style.cursor = connId ? 'pointer' : 'default'
+  }, [])
 
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current; if (!canvas) return
@@ -129,7 +192,7 @@ export function DiagramCanvas() {
       ctx, elementsRef.current, connectionsRef.current, vpRef.current,
       selectedIdsRef.current, selectedConnectionIdRef.current,
       connectingFromIdRef.current, connectionPreviewPosRef.current,
-      marqueeRef.current,
+      marqueeRef.current, boxDrawPreviewWorldRef.current,
       dprRef.current, canvas.offsetWidth, canvas.offsetHeight, themeRef.current,
       useAppStore.getState().defaultFontSize,
     )
@@ -154,6 +217,11 @@ export function DiagramCanvas() {
       const target = e.target as Element
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
 
+      if ((e.key === 'z' || e.key === 'Z') && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        e.preventDefault()
+        useAppStore.getState().undo()
+        return
+      }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedIdsRef.current.length > 0) { deleteSelected(); return }
         if (selectedConnectionIdRef.current) { deleteConnection(selectedConnectionIdRef.current); return }
@@ -166,8 +234,11 @@ export function DiagramCanvas() {
       if (e.key === 'v' && (e.metaKey || e.ctrlKey)) {
         if (clipboardRef.current.length > 0) {
           e.preventDefault()
+          const canvas = canvasRef.current
+          const rect = canvas?.getBoundingClientRect() ?? { left: 0, top: 0 }
+          const wp = screenToWorld(cursorPosRef.current.x - rect.left, cursorPosRef.current.y - rect.top, vpRef.current)
           const prevCount = useAppStore.getState().elements.length
-          paste()
+          pasteAt(wp.x, wp.y)
           const els = useAppStore.getState().elements.slice(prevCount)
           els.forEach((el) => { if (el.type === 'icon') loadIcon(el.iconName, themeRef.current) })
         }
@@ -184,8 +255,11 @@ export function DiagramCanvas() {
         if (selectedIdsRef.current.length > 0) {
           e.preventDefault()
           copySelected()
+          const canvas = canvasRef.current
+          const rect = canvas?.getBoundingClientRect() ?? { left: 0, top: 0 }
+          const wp = screenToWorld(cursorPosRef.current.x - rect.left, cursorPosRef.current.y - rect.top, vpRef.current)
           const prevCount = useAppStore.getState().elements.length
-          paste()
+          pasteAt(wp.x, wp.y)
           const els = useAppStore.getState().elements.slice(prevCount)
           els.forEach((el) => { if (el.type === 'icon') loadIcon(el.iconName, themeRef.current) })
         }
@@ -193,18 +267,8 @@ export function DiagramCanvas() {
       }
       if ((e.key === 'b' || e.key === 'B') && !e.metaKey && !e.ctrlKey) {
         e.preventDefault()
-        const text = prompt('Box label (optional):') ?? ''
-        const canvas = canvasRef.current
-        const cx = (canvas?.offsetWidth ?? 800) / 2
-        const cy = (canvas?.offsetHeight ?? 600) / 2
-        const worldPos = screenToWorld(cx, cy, vpRef.current)
-        const el: BoxElement = {
-          id: genId(), type: 'box',
-          x: worldPos.x - 120, y: worldPos.y - 80,
-          width: 240, height: 160,
-          text, fontSize: Math.max(11, defaultFontSize - 2),
-        }
-        addElement(el); setSelected(el.id)
+        boxPlacementActiveRef.current = true
+        setBoxPlacementActive(true)
         return
       }
       if (e.key === 'i' || e.key === '/') { e.preventDefault(); openIconSearch() }
@@ -219,13 +283,22 @@ export function DiagramCanvas() {
         openTextInput((canvas?.offsetWidth ?? 800) / 2, (canvas?.offsetHeight ?? 600) / 2)
       }
       if ((e.key === 's' || e.key === 'S') && !e.metaKey && !e.ctrlKey) {
-        // S on a selected icon = swap image
         const primaryId = selectedIdsRef.current[0]
         if (primaryId) {
           const el = elementsRef.current.find((e) => e.id === primaryId)
           if (el?.type === 'icon') {
+            // S on a selected icon = swap image
             e.preventDefault()
             openIconSearch(undefined, primaryId)
+            return
+          }
+          if (el?.type === 'box') {
+            // S on a selected box = cycle style
+            e.preventDefault()
+            const styles = ['solid', 'dashed', 'filled'] as const
+            const current = (el as import('../store/types').BoxElement).style ?? 'solid'
+            const next = styles[(styles.indexOf(current) + 1) % styles.length]
+            updateElement(primaryId, { style: next } as Partial<import('../store/types').BoxElement>)
             return
           }
         }
@@ -279,8 +352,15 @@ export function DiagramCanvas() {
         return
       }
       if (e.key === 'Escape') {
+        if (boxPlacementActiveRef.current) {
+          boxPlacementActiveRef.current = false
+          setBoxPlacementActive(false)
+          boxDrawStartRef.current = null
+          boxDrawPreviewWorldRef.current = null
+          return
+        }
         if (toolModeRef.current === 'connect') { cancelConnecting(); return }
-        closeColorPicker(); closeRename()
+        closeColorPicker(); closeRename(); closeContextMenu()
         setSelected(null); setSelectedConnection(null); closeTextInput()
         useAppStore.getState().closeIconSearch()
       }
@@ -288,23 +368,69 @@ export function DiagramCanvas() {
       if (e.key === ']') setViewport({ ...vpRef.current, rotation: vpRef.current.rotation + 0.1 })
       if (e.key === 'o' && !e.metaKey && !e.ctrlKey) {
         const canvas = canvasRef.current
-        setViewport(resetRotation(vpRef.current, canvas?.offsetWidth ?? 800, canvas?.offsetHeight ?? 600))
+        const w = canvas?.offsetWidth ?? 800
+        const h = canvas?.offsetHeight ?? 600
+        if (Math.abs(vpRef.current.rotation) > 0.001) {
+          setViewport(resetRotation(vpRef.current, w, h))
+        } else {
+          setViewport({ panX: 0, panY: 0, zoom: 1, rotation: 0 })
+        }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [deleteElement, deleteSelected, deleteConnection, updateConnection, openIconSearch, openTextInput, closeTextInput, setSelected, setViewport, startConnecting, cancelConnecting, copySelected, paste, openColorPicker, closeColorPicker, openRename, closeRename])
+  }, [deleteElement, deleteSelected, deleteConnection, updateConnection, openIconSearch, openTextInput, closeTextInput, setSelected, setViewport, startConnecting, cancelConnecting, copySelected, paste, pasteAt, openColorPicker, closeColorPicker, openRename, closeRename, pushHistory, closeContextMenu])
 
-  // Mouse move for connection preview
-  const onMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    cursorPosRef.current = { x: e.clientX, y: e.clientY }
-    if (toolModeRef.current !== 'connect') return
+  // Re-evaluate cursor whenever mode changes (box placement, tool mode)
+  useEffect(() => {
     const canvas = canvasRef.current; if (!canvas) return
     const rect = canvas.getBoundingClientRect()
-    const screenX = e.clientX - rect.left; const screenY = e.clientY - rect.top
-    const worldPos = screenToWorld(screenX, screenY, vpRef.current)
+    updateCursor(cursorPosRef.current.x - rect.left, cursorPosRef.current.y - rect.top)
+  }, [boxPlacementActive, toolMode, updateCursor])
+
+  // Mouse move for connection preview and box draw preview
+  const onMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    cursorPosRef.current = { x: e.clientX, y: e.clientY }
+    const canvas = canvasRef.current
+    const rect = canvas?.getBoundingClientRect() ?? { left: 0, top: 0 }
+    const canvasX = e.clientX - rect.left
+    const canvasY = e.clientY - rect.top
+    if (canvas) updateCursor(canvasX, canvasY)
+    if (boxPlacementActiveRef.current && boxDrawPreviewWorldRef.current) {
+      const wp = screenToWorld(canvasX, canvasY, vpRef.current)
+      boxDrawPreviewWorldRef.current = { ...boxDrawPreviewWorldRef.current, x2: wp.x, y2: wp.y }
+    }
+    if (toolModeRef.current !== 'connect') return
+    const worldPos = screenToWorld(canvasX, canvasY, vpRef.current)
     setConnectionPreviewPos(worldPos)
-  }, [setConnectionPreviewPos])
+  }, [setConnectionPreviewPos, updateCursor])
+
+  const onContextMenu = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const canvas = canvasRef.current; if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const worldPos = screenToWorld(e.clientX - rect.left, e.clientY - rect.top, vpRef.current)
+    // Auto-select element under cursor if not already selected
+    const hit = hitTest(elementsRef.current, worldPos.x, worldPos.y, selectedIdsRef.current[0] ?? null)
+    if (hit.kind === 'element' && !selectedIdsRef.current.includes(hit.id)) {
+      setSelected(hit.id)
+    } else if (hit.kind === 'none' && !selectedIdsRef.current.length) {
+      const connId = hitTestConnection(connectionsRef.current, elementsRef.current, worldPos.x, worldPos.y)
+      if (connId) setSelectedConnection(connId)
+    }
+    openContextMenu(e.clientX, e.clientY)
+  }, [openContextMenu, setSelected, setSelectedConnection])
+
+  // Record the first corner on mousedown and capture shift state for click handler
+  const onMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    shiftHeldRef.current = e.shiftKey
+    if (!boxPlacementActiveRef.current) return
+    boxDrawStartRef.current = { screenX: e.clientX, screenY: e.clientY }
+    const canvas = canvasRef.current
+    const rect = canvas?.getBoundingClientRect() ?? { left: 0, top: 0 }
+    const wp = screenToWorld(e.clientX - rect.left, e.clientY - rect.top, vpRef.current)
+    boxDrawPreviewWorldRef.current = { x1: wp.x, y1: wp.y, x2: wp.x, y2: wp.y }
+  }, [])
 
   // Gesture controller
   useEffect(() => {
@@ -319,6 +445,22 @@ export function DiagramCanvas() {
       onClick: (screenX, screenY) => {
         const worldPos = screenToWorld(screenX, screenY, vpRef.current)
 
+        if (boxPlacementActiveRef.current) {
+          // Simple click (no drag) — place a default-sized box centered on click
+          const el: BoxElement = {
+            id: genId(), type: 'box',
+            x: worldPos.x - 120, y: worldPos.y - 80,
+            width: 240, height: 160,
+            text: '', fontSize: Math.max(11, defaultFontSizeRef.current - 2),
+          }
+          addElement(el); setSelected(el.id)
+          boxPlacementActiveRef.current = false
+          setBoxPlacementActive(false)
+          boxDrawStartRef.current = null
+          boxDrawPreviewWorldRef.current = null
+          return
+        }
+
         if (toolModeRef.current === 'connect') {
           const hit = hitTest(elementsRef.current, worldPos.x, worldPos.y, null)
           if (hit.kind === 'element' && hit.id !== connectingFromIdRef.current) {
@@ -331,7 +473,17 @@ export function DiagramCanvas() {
         if (toolModeRef.current === 'text') { openTextInput(screenX, screenY); return }
 
         const hit = hitTest(elementsRef.current, worldPos.x, worldPos.y, selectedIdsRef.current[0] ?? null)
-        if (hit.kind === 'element') { setSelected(hit.id); return }
+        if (hit.kind === 'element') {
+          if (shiftHeldRef.current) {
+            const already = selectedIdsRef.current.includes(hit.id)
+            setSelectedIds(already
+              ? selectedIdsRef.current.filter((id) => id !== hit.id)
+              : [...selectedIdsRef.current, hit.id])
+          } else {
+            setSelected(hit.id)
+          }
+          return
+        }
         // Try connections
         const connId = hitTestConnection(connectionsRef.current, elementsRef.current, worldPos.x, worldPos.y)
         if (connId) { setSelectedConnection(connId); return }
@@ -339,23 +491,30 @@ export function DiagramCanvas() {
       },
 
       onDragStart: (screenX, screenY) => {
+        if (boxPlacementActiveRef.current) return // preview handled via onMouseDown/onMouseMove
         if (toolModeRef.current !== 'select') return
         const worldPos = screenToWorld(screenX, screenY, vpRef.current)
         const hit = hitTest(elementsRef.current, worldPos.x, worldPos.y, selectedIdsRef.current[0] ?? null)
         if (hit.kind === 'handle') {
           const el = elementsRef.current.find((e) => e.id === hit.id)
           if (el) {
+            pushHistory()
             dragStateRef.current = {
               kind: 'resize', id: hit.id, handle: hit.handle,
               startWorldX: worldPos.x, startWorldY: worldPos.y,
               origX: el.x, origY: el.y, origW: el.width, origH: el.height,
             }
+            updateCursor(screenX, screenY)
           }
         } else if (hit.kind === 'element') {
-          const idsToMove = selectedIdsRef.current.includes(hit.id)
+          const baseIds = selectedIdsRef.current.includes(hit.id)
             ? selectedIdsRef.current
             : [hit.id]
           if (!selectedIdsRef.current.includes(hit.id)) setSelectedIds([hit.id])
+          pushHistory()
+          const idsToMove = hierarchyMoveRef.current
+            ? collectContainedIds(baseIds, elementsRef.current)
+            : baseIds
           dragStateRef.current = {
             kind: 'move',
             ids: idsToMove,
@@ -366,6 +525,7 @@ export function DiagramCanvas() {
               return [id, { x: el?.x ?? 0, y: el?.y ?? 0 }]
             })),
           }
+          updateCursor(screenX, screenY)
         } else {
           // marquee
           setSelectedIds([])
@@ -375,6 +535,7 @@ export function DiagramCanvas() {
       },
 
       onDragMove: (_dx, _dy, screenX, screenY) => {
+        if (boxPlacementActiveRef.current) return // preview handled by React onMouseMove
         const ds = dragStateRef.current; if (!ds) return
         const worldPos = screenToWorld(screenX, screenY, vpRef.current)
         if (ds.kind === 'move') {
@@ -410,7 +571,33 @@ export function DiagramCanvas() {
         }
       },
 
-      onDragEnd: () => {
+      onDragEnd: (screenX, screenY) => {
+        if (boxPlacementActiveRef.current) {
+          const canvas = canvasRef.current
+          const canvasRect = canvas?.getBoundingClientRect() ?? { left: 0, top: 0 }
+          const worldEnd = screenToWorld(screenX, screenY, vpRef.current)
+          if (boxDrawStartRef.current) {
+            const worldStart = screenToWorld(
+              boxDrawStartRef.current.screenX - canvasRect.left,
+              boxDrawStartRef.current.screenY - canvasRect.top,
+              vpRef.current,
+            )
+            const x = Math.min(worldStart.x, worldEnd.x)
+            const y = Math.min(worldStart.y, worldEnd.y)
+            const w = Math.max(20, Math.abs(worldEnd.x - worldStart.x))
+            const h = Math.max(20, Math.abs(worldEnd.y - worldStart.y))
+            const el: BoxElement = {
+              id: genId(), type: 'box', x, y, width: w, height: h,
+              text: '', fontSize: Math.max(11, defaultFontSizeRef.current - 2),
+            }
+            addElement(el); setSelected(el.id)
+          }
+          boxPlacementActiveRef.current = false
+          setBoxPlacementActive(false)
+          boxDrawStartRef.current = null
+          boxDrawPreviewWorldRef.current = null
+          return
+        }
         const ds = dragStateRef.current
         if (ds?.kind === 'marquee' && marqueeRef.current) {
           const rect = marqueeRef.current
@@ -424,21 +611,23 @@ export function DiagramCanvas() {
           marqueeRef.current = null
         }
         dragStateRef.current = null
+        updateCursor(screenX, screenY)
       },
     })
 
     gestureRef.current = ctrl
     return () => { ctrl.detach(); gestureRef.current = null }
-  }, [setViewport, setSelected, setSelectedIds, updateElement, openTextInput, finishConnecting, cancelConnecting])
+  }, [setViewport, setSelected, setSelectedIds, updateElement, openTextInput, finishConnecting, cancelConnecting, pushHistory, updateCursor])
 
-  const cursor = toolMode === 'text' ? 'text' : toolMode === 'connect' ? 'crosshair' : 'default'
 
   return (
     <>
       <canvas
         ref={canvasRef}
         onMouseMove={onMouseMove}
-        style={{ display: 'block', width: '100%', height: '100%', cursor, touchAction: 'none', userSelect: 'none' }}
+        onMouseDown={onMouseDown}
+        onContextMenu={onContextMenu}
+        style={{ display: 'block', width: '100%', height: '100%', touchAction: 'none', userSelect: 'none' }}
       />
       <TextInputOverlay />
     </>

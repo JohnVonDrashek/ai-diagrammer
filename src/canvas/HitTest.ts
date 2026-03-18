@@ -132,7 +132,18 @@ export function elementsInRect(
       el.x > x + w ||
       el.y + el.height < y ||
       el.y > y + h
-    if (!noOverlap) result.push(el.id)
+    if (noOverlap) continue
+
+    // For hollow boxes: don't select if the marquee is entirely inside the box
+    // (marquee never touches the border lines)
+    if (el.type === 'box') {
+      const marqueeInsideBox =
+        x >= el.x && x + w <= el.x + el.width &&
+        y >= el.y && y + h <= el.y + el.height
+      if (marqueeInsideBox) continue
+    }
+
+    result.push(el.id)
   }
   return result
 }

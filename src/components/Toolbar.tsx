@@ -4,7 +4,7 @@ import { resetRotation } from '../canvas/ViewportMatrix'
 import type { Diagram } from '../store/types'
 
 export function Toolbar() {
-  const { selectedIds, deleteSelected, openIconSearch, viewport, setViewport, theme, toggleTheme, toolMode, rotationEnabled, toggleRotation, defaultFontSize, setDefaultFontSize, diagrams, activeDiagramId, elements, connections, importDiagram } = useAppStore()
+  const { selectedIds, deleteSelected, openIconSearch, viewport, setViewport, theme, toggleTheme, toolMode, rotationEnabled, toggleRotation, hierarchyMove, toggleHierarchyMove, defaultFontSize, setDefaultFontSize, diagrams, activeDiagramId, elements, connections, importDiagram } = useAppStore()
   const resolvedTheme = useAppStore(selectResolvedTheme)
   const isDark = resolvedTheme === 'dark'
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -145,6 +145,21 @@ export function Toolbar() {
       )}
 
       <Divider isDark={isDark} />
+
+      {/* Hierarchy move toggle */}
+      <ToolBtn
+        title={hierarchyMove ? 'Hierarchy move on — box moves carry contents (click to disable)' : 'Hierarchy move off — click to enable'}
+        onClick={toggleHierarchyMove}
+        isDark={isDark}
+        active={hierarchyMove}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="2" y="3" width="20" height="18" rx="2" />
+          <rect x="6" y="7" width="5" height="4" rx="1" />
+          <rect x="13" y="7" width="5" height="4" rx="1" />
+          <rect x="9" y="14" width="6" height="4" rx="1" />
+        </svg>
+      </ToolBtn>
 
       {/* Rotation toggle */}
       <ToolBtn

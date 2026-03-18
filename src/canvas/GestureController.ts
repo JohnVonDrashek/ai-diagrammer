@@ -51,6 +51,10 @@ export class GestureController {
   private lastDragPos: PointerPos = { x: 0, y: 0 }
   private dragStartTime = 0
 
+  // Middle-mouse pan state
+  private middlePanPointerId: number | null = null
+  private lastMiddlePos: PointerPos = { x: 0, y: 0 }
+
   // Space key pan
   private spaceHeld = false
 
@@ -61,6 +65,10 @@ export class GestureController {
     this.callbacks = callbacks
     this.attach()
   }
+
+  get isPanning() { return this.middlePanPointerId !== null }
+  get isSpaceHeld() { return this.spaceHeld }
+  get isSpacePanActive() { return this.spaceHeld && this.isDragging }
 
   invalidateRect() {
     this.canvasRect = null
@@ -76,12 +84,15 @@ export class GestureController {
     return { x: clientX - r.left, y: clientY - r.top }
   }
 
+  private onMiddleClick = (e: MouseEvent) => { if (e.button === 1) e.preventDefault() }
+
   private attach() {
     const c = this.canvas
     c.addEventListener('pointerdown', this.onPointerDown)
     c.addEventListener('pointermove', this.onPointerMove)
     c.addEventListener('pointerup', this.onPointerUp)
     c.addEventListener('pointercancel', this.onPointerUp)
+    c.addEventListener('auxclick', this.onMiddleClick)
     c.addEventListener('wheel', this.onWheel, { passive: false })
     // Safari-only gesture events
     c.addEventListener('gesturestart', this.onGestureStart as EventListener)
@@ -98,6 +109,7 @@ export class GestureController {
     c.removeEventListener('pointermove', this.onPointerMove)
     c.removeEventListener('pointerup', this.onPointerUp)
     c.removeEventListener('pointercancel', this.onPointerUp)
+    c.removeEventListener('auxclick', this.onMiddleClick)
     c.removeEventListener('wheel', this.onWheel)
     c.removeEventListener('gesturestart', this.onGestureStart as EventListener)
     c.removeEventListener('gesturechange', this.onGestureChange as EventListener)
@@ -129,6 +141,15 @@ export class GestureController {
   }
 
   private onPointerDown = (e: PointerEvent) => {
+    // Middle mouse button — pan only, don't participate in normal pointer tracking
+    if (e.button === 1) {
+      e.preventDefault()
+      this.canvas.setPointerCapture(e.pointerId)
+      this.middlePanPointerId = e.pointerId
+      this.lastMiddlePos = this.rel(e.clientX, e.clientY)
+      return
+    }
+
     this.canvas.setPointerCapture(e.pointerId)
     const pos = this.rel(e.clientX, e.clientY)
     this.activePointers.set(e.pointerId, pos)
@@ -148,6 +169,20 @@ export class GestureController {
   }
 
   private onPointerMove = (e: PointerEvent) => {
+    // Middle-mouse pan
+    if (e.pointerId === this.middlePanPointerId) {
+      const pos = this.rel(e.clientX, e.clientY)
+      const dx = pos.x - this.lastMiddlePos.x
+      const dy = pos.y - this.lastMiddlePos.y
+      this.lastMiddlePos = pos
+      this.callbacks.onGestureDelta({
+        deltaRotation: 0, deltaZoom: 1,
+        deltaPanX: dx, deltaPanY: dy,
+        originX: pos.x, originY: pos.y,
+      })
+      return
+    }
+
     if (!this.activePointers.has(e.pointerId)) return
     const pos = this.rel(e.clientX, e.clientY)
     this.activePointers.set(e.pointerId, pos)
@@ -214,6 +249,11 @@ export class GestureController {
   }
 
   private onPointerUp = (e: PointerEvent) => {
+    if (e.pointerId === this.middlePanPointerId) {
+      this.middlePanPointerId = null
+      return
+    }
+
     const pos = this.rel(e.clientX, e.clientY)
 
     if (this.activePointers.size === 1) {
@@ -250,8 +290,8 @@ export class GestureController {
         originX: pos.x,
         originY: pos.y,
       })
-    } else if (e.ctrlKey) {
-      // Trackpad pinch-to-zoom (macOS sends ctrlKey=true for pinch)
+    } else if (e.ctrlKey || e.metaKey) {
+      // Trackpad pinch-to-zoom (macOS sends ctrlKey=true for pinch) or Cmd+scroll
       const zoomFactor = Math.exp(-e.deltaY * 0.008)
       this.callbacks.onGestureDelta({
         deltaRotation: 0,

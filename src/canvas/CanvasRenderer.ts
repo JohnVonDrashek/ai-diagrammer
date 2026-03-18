@@ -68,6 +68,23 @@ function drawGrid(ctx: CanvasRenderingContext2D, vp: ViewportState, cssW: number
   }
 }
 
+function drawOriginMarker(ctx: CanvasRenderingContext2D, vp: ViewportState, theme: Theme) {
+  const s = 10 / vp.zoom   // arm length in world units — stays ~10px on screen
+  const r = 3 / vp.zoom    // centre dot radius
+  const color = theme === 'dark' ? 'rgba(99,102,241,0.5)' : 'rgba(99,102,241,0.45)'
+  ctx.save()
+  ctx.strokeStyle = color
+  ctx.fillStyle = color
+  ctx.lineWidth = 1.5 / vp.zoom
+  // Horizontal arm
+  ctx.beginPath(); ctx.moveTo(-s, 0); ctx.lineTo(s, 0); ctx.stroke()
+  // Vertical arm
+  ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(0, s); ctx.stroke()
+  // Centre dot
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill()
+  ctx.restore()
+}
+
 function drawIconElement(
   ctx: CanvasRenderingContext2D,
   el: import('../store/types').IconElement,
@@ -136,6 +153,7 @@ function drawBoxElement(
   fontSize: number
 ) {
   const isDark = theme === 'dark'
+  const boxStyle = el.style ?? 'solid'
   const glowColor = el.color ?? (isDark ? 'rgba(148,163,184,0.5)' : 'rgba(100,116,139,0.5)')
   const strokeColor = el.color ?? (isDark ? 'rgba(148,163,184,0.35)' : 'rgba(100,116,139,0.4)')
 
@@ -143,13 +161,27 @@ function drawBoxElement(
   ctx.beginPath()
   ctx.roundRect(el.x, el.y, el.width, el.height, 10)
 
-  // Glow pass
-  ctx.shadowColor = glowColor
-  ctx.shadowBlur = el.color ? 14 : 6
-  ctx.strokeStyle = el.color ?? strokeColor
-  ctx.lineWidth = 1.5
-  ctx.setLineDash(el.color ? [] : [6, 4])
-  ctx.stroke()
+  if (boxStyle === 'filled') {
+    // Fill at low opacity so color shows as a tint rather than a solid block
+    ctx.globalAlpha = el.color ? 0.15 : 1
+    ctx.fillStyle = el.color ?? (isDark ? 'rgba(148,163,184,0.1)' : 'rgba(100,116,139,0.08)')
+    ctx.fill()
+    ctx.globalAlpha = 1
+    ctx.shadowColor = glowColor
+    ctx.shadowBlur = el.color ? 14 : 6
+    ctx.strokeStyle = el.color ?? strokeColor
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([])
+    ctx.stroke()
+  } else {
+    // Glow pass
+    ctx.shadowColor = glowColor
+    ctx.shadowBlur = el.color ? 14 : 6
+    ctx.strokeStyle = el.color ?? strokeColor
+    ctx.lineWidth = 1.5
+    ctx.setLineDash(boxStyle === 'dashed' ? [6, 4] : [])
+    ctx.stroke()
+  }
   ctx.restore()
 
   // Label top-left
@@ -371,17 +403,39 @@ function drawMarquee(
   rect: { x1: number; y1: number; x2: number; y2: number },
   theme: 'dark' | 'light'
 ) {
-  const x = Math.min(rect.x1, rect.x2)
-  const y = Math.min(rect.y1, rect.y2)
-  const w = Math.abs(rect.x2 - rect.x1)
-  const h = Math.abs(rect.y2 - rect.y1)
+  const { x1, y1, x2, y2 } = rect
+  const x = Math.min(x1, x2)
+  const y = Math.min(y1, y2)
+  const w = Math.abs(x2 - x1)
+  const h = Math.abs(y2 - y1)
   ctx.save()
   ctx.fillStyle = theme === 'dark' ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.06)'
+  ctx.fillRect(x, y, w, h)
   ctx.strokeStyle = '#6366f1'
   ctx.lineWidth = 1
   ctx.setLineDash([4, 3])
-  ctx.fillRect(x, y, w, h)
-  ctx.strokeRect(x, y, w, h)
+  // Draw the two arms FROM the drag origin as separate paths so each resets
+  // dash offset to 0 — dashes grow outward from (x1,y1) without shifting.
+  ctx.beginPath()
+  ctx.moveTo(x1, y1)
+  ctx.lineTo(x2, y1)  // horizontal arm from origin
+  ctx.stroke()
+
+  ctx.beginPath()
+  ctx.moveTo(x1, y1)
+  ctx.lineTo(x1, y2)  // vertical arm from origin
+  ctx.stroke()
+
+  // Far closing edges — each its own path so dash offset starts at 0
+  ctx.beginPath()
+  ctx.moveTo(x2, y1)
+  ctx.lineTo(x2, y2)  // right edge grows down from top-arm endpoint
+  ctx.stroke()
+
+  ctx.beginPath()
+  ctx.moveTo(x1, y2)
+  ctx.lineTo(x2, y2)  // bottom edge grows right from left-arm endpoint
+  ctx.stroke()
   ctx.setLineDash([])
   ctx.restore()
 }
@@ -398,6 +452,7 @@ export function render(
   connectingFromId: string | null,
   connectionPreviewPos: { x: number; y: number } | null,
   marqueeRect: { x1: number; y1: number; x2: number; y2: number } | null,
+  boxDrawPreview: { x1: number; y1: number; x2: number; y2: number } | null,
   dpr: number,
   cssW: number,
   cssH: number,
@@ -412,6 +467,7 @@ export function render(
   ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f)
 
   drawGrid(ctx, vp, cssW, cssH, theme)
+  drawOriginMarker(ctx, vp, theme)
 
   // Connections drawn before elements (elements render on top)
   drawConnections(ctx, connections, elements, selectedConnectionId, theme, defaultFontSize)
@@ -445,4 +501,5 @@ export function render(
   }
 
   if (marqueeRect) drawMarquee(ctx, marqueeRect, theme)
+  if (boxDrawPreview) drawMarquee(ctx, boxDrawPreview, theme)
 }
