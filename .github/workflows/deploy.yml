@@ -32,7 +32,7 @@ jobs:
 
       - run: npm run build
         env:
-          VITE_BASE: /ai-diagrammer/
+          VITE_BASE: /holychart/
 
       - uses: actions/configure-pages@v4
 

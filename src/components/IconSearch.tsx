@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAppStore, selectResolvedTheme } from '../store/useAppStore'
 import { fuzzyMatchIcons } from '../icons/fuzzyMatch'
-import { aiIconMatch } from '../icons/aiIconMatch'
 import { loadIcon, getIconImage } from '../icons/iconifyClient'
 import { placeIcon } from './DiagramCanvas'
 
@@ -91,15 +90,11 @@ export function IconSearch() {
   const theme = useAppStore(selectResolvedTheme)
   const inputRef = useRef<HTMLInputElement>(null)
   const [results, setResults] = useState<Array<{ iconName: string; label: string }>>([])
-  const [isAiLoading, setIsAiLoading] = useState(false)
-  const [aiResult, setAiResult] = useState<{ iconName: string; label: string } | null>(null)
-  const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (isIconSearchOpen) {
       setTimeout(() => inputRef.current?.focus(), 50)
       setResults([])
-      setAiResult(null)
     }
   }, [isIconSearchOpen])
 
@@ -107,43 +102,19 @@ export function IconSearch() {
     (q: string) => {
       if (!q.trim()) {
         setResults([])
-        setAiResult(null)
         return
       }
-
       const fuzzy = fuzzyMatchIcons(q, 12)
       setResults(fuzzy.map((r) => ({ iconName: r.iconName, label: r.keyword })))
-
-      // Debounce AI fallback
-      if (aiTimerRef.current) clearTimeout(aiTimerRef.current)
-      if (fuzzy.length === 0 || fuzzy[0].score < 50) {
-        aiTimerRef.current = setTimeout(async () => {
-          setIsAiLoading(true)
-          const iconName = await aiIconMatch(q)
-          setIsAiLoading(false)
-          if (iconName) {
-            setAiResult({ iconName, label: q })
-            // Also preload the icon
-            loadIcon(iconName, selectResolvedTheme(useAppStore.getState()))
-          }
-        }, 600)
-      }
     },
     []
   )
 
   useEffect(() => {
     runSearch(iconSearchQuery)
-    return () => {
-      if (aiTimerRef.current) clearTimeout(aiTimerRef.current)
-    }
   }, [iconSearchQuery, runSearch])
 
   if (!isIconSearchOpen) return null
-
-  const allResults = aiResult
-    ? [aiResult, ...results.filter((r) => r.iconName !== aiResult.iconName)]
-    : results
 
   return (
     <>
@@ -189,8 +160,8 @@ export function IconSearch() {
               onChange={(e) => setIconSearchQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') closeIconSearch()
-                if (e.key === 'Enter' && allResults.length > 0) {
-                  placeIcon(allResults[0].iconName, allResults[0].label)
+                if (e.key === 'Enter' && results.length > 0) {
+                  placeIcon(results[0].iconName, results[0].label)
                 }
               }}
               placeholder={swappingIconId ? 'Search new icon to swap…' : 'Search icons (e.g. server, database, cloud)...'}
@@ -204,11 +175,6 @@ export function IconSearch() {
                 fontFamily: 'var(--font-ui)',
               }}
             />
-            {isAiLoading && (
-              <span style={{ fontSize: 11, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
-                AI matching...
-              </span>
-            )}
             <button
               onClick={closeIconSearch}
               style={{
@@ -227,12 +193,12 @@ export function IconSearch() {
 
         {/* Results */}
         <div style={{ padding: 12, minHeight: 80, maxHeight: 320, overflowY: 'auto' }}>
-          {allResults.length === 0 && !isAiLoading && iconSearchQuery.trim() && (
+          {results.length === 0 && iconSearchQuery.trim() && (
             <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>
               No icons found. Try a different word.
             </p>
           )}
-          {allResults.length === 0 && !iconSearchQuery.trim() && (
+          {results.length === 0 && !iconSearchQuery.trim() && (
             <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>
               Type to search icons from the Material Design Icons library
             </p>
@@ -244,7 +210,7 @@ export function IconSearch() {
               gap: 8,
             }}
           >
-            {allResults.map((r, i) => (
+            {results.map((r, i) => (
               <PreviewIcon
                 key={`${r.iconName}-${i}`}
                 iconName={r.iconName}

@@ -1,17 +1,17 @@
-# diagramr
+# HolyChart
 
-A trackpad-first infinite canvas diagramming tool with AI-powered icon search.
+A trackpad-first infinite canvas diagramming tool.
 
-![diagramr](https://img.shields.io/badge/built_with-React_+_TypeScript-blue) ![license](https://img.shields.io/badge/license-MIT-green)
+![built with](https://img.shields.io/badge/built_with-React_+_TypeScript-blue) ![license](https://img.shields.io/badge/license-MIT-green)
 
 ## Why
 
-Most diagramming tools treat trackpads as second-class mice. diagramr is built around trackpad gestures — including **canvas rotation** via two-finger twist, which virtually no other tool supports.
+Most diagramming tools treat trackpads as second-class mice. HolyChart is built around trackpad gestures — including **canvas rotation** via two-finger twist, which virtually no other tool supports.
 
 ## What it does
 
 - **Infinite canvas** — pan, pinch-to-zoom, and twist-to-rotate with trackpad gestures
-- **AI icon search** — type any word, fuzzy-matches 150+ curated icons instantly; falls back to Claude Haiku for obscure concepts
+- **Icon search** — fuzzy-matches 150+ curated Material Design Icons instantly
 - **Boxes, text, icons** — three element types with colors, labels, and resize handles
 - **Connections** — draw arrows between elements with solid, dashed, or animated styles
 - **Multi-select** — rubber-band selection, move groups together
@@ -23,15 +23,10 @@ Most diagramming tools treat trackpads as second-class mice. diagramr is built a
 
 ```bash
 npm install
-cp .env.example .env   # add ANTHROPIC_API_KEY for AI icon matching (optional)
 npm run dev
 ```
 
-Requires Node 18+. The app works fully without an API key — AI icon matching is a progressive enhancement.
-
-## AI icon matching
-
-The optional server (`server/index.ts`) proxies requests to Claude Haiku when fuzzy matching finds no confident result. Set `ANTHROPIC_API_KEY` in `.env` to enable it. Without a key the server still runs and returns `null`, falling back to fuzzy search only.
+Requires Node 18+.
 
 ## License
 
