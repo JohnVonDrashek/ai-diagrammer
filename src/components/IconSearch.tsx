@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAppStore, selectResolvedTheme } from '../store/useAppStore'
 import { fuzzyMatchIcons } from '../icons/fuzzyMatch'
-import { loadIcon, getIconImage } from '../icons/iconifyClient'
+import { loadIcon, getBakedIconUri, themeToHex } from '../icons/iconifyClient'
 import { placeIcon } from './DiagramCanvas'
 
 interface PreviewIconProps {
@@ -13,13 +13,14 @@ interface PreviewIconProps {
 
 function PreviewIcon({ iconName, label, onSelect, isRandom }: PreviewIconProps) {
   const theme = useAppStore(selectResolvedTheme)
-  const [loaded, setLoaded] = useState(() => !!getIconImage(iconName, theme))
 
+  // Warm the canvas cache in the background
   useEffect(() => {
-    if (!loaded) {
-      loadIcon(iconName, theme, () => setLoaded(true))
-    }
-  }, [iconName, loaded, theme])
+    loadIcon(iconName, theme)
+  }, [iconName, theme])
+
+  const color = getComputedStyle(document.documentElement).getPropertyValue('--text').trim()
+  const src = getBakedIconUri(iconName, color)
 
   // Display name: strip 'mdi:' prefix
   const displayName = label || iconName.replace(/^mdi:/, '').replace(/-/g, ' ')
@@ -74,9 +75,9 @@ function PreviewIcon({ iconName, label, onSelect, isRandom }: PreviewIconProps) 
           </svg>
         </div>
       )}
-      {loaded ? (
+      {src ? (
         <img
-          src={`https://api.iconify.design/${iconName.replace(':', '/')}.svg?height=40&color=${encodeURIComponent(getComputedStyle(document.documentElement).getPropertyValue('--text').trim())}`}
+          src={src}
           width={40}
           height={40}
           alt={displayName}

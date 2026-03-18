@@ -1,18 +1,26 @@
-import type { Theme } from '../store/types'
+import { BAKED_ICONS } from './bakedIcons'
 
 // Cache keyed by "iconName|#hexcolor"
 const imageCache = new Map<string, HTMLImageElement | Promise<HTMLImageElement>>()
 
-export function themeToHex(theme: Theme | string): string {
-  if (theme === 'dark' || theme === 'light') {
-    // Read the --text color from the active theme's CSS variables
-    return getComputedStyle(document.documentElement).getPropertyValue('--text').trim()
-  }
-  return theme // already a hex string
+export function themeToHex(theme: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#e2e8f0'
 }
 
 function cacheKey(iconName: string, hex: string) {
   return `${iconName}|${hex}`
+}
+
+/** Inject a color into a currentColor SVG and return a data URI. */
+export function svgToDataUri(svg: string, color: string): string {
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace(/currentColor/g, color))
+}
+
+/** Get a data URI for a baked icon with the given color, or null if not baked. */
+export function getBakedIconUri(iconName: string, color: string): string | null {
+  const svg = BAKED_ICONS[iconName]
+  if (!svg) return null
+  return svgToDataUri(svg, color)
 }
 
 function parseIconName(iconName: string): { collection: string; name: string } {
@@ -21,27 +29,22 @@ function parseIconName(iconName: string): { collection: string; name: string } {
   return { collection: iconName.slice(0, i), name: iconName.slice(i + 1) }
 }
 
-async function fetchIcon(iconName: string, hex: string): Promise<HTMLImageElement> {
-  const { collection, name } = parseIconName(iconName)
-  const encoded = encodeURIComponent(hex)
-  const url = `https://api.iconify.design/${collection}/${name}.svg?height=128&color=${encoded}`
-
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Failed to fetch icon: ${iconName}`)
-  const svg = await res.text()
-
-  const blob = new Blob([svg], { type: 'image/svg+xml' })
-  const blobUrl = URL.createObjectURL(blob)
+async function iconToImage(iconName: string, hex: string): Promise<HTMLImageElement> {
+  const dataUri = getBakedIconUri(iconName, hex)
+  const src = dataUri ?? (() => {
+    const { collection, name } = parseIconName(iconName)
+    return `https://api.iconify.design/${collection}/${name}.svg?height=128&color=${encodeURIComponent(hex)}`
+  })()
 
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.onload = () => { URL.revokeObjectURL(blobUrl); resolve(img) }
-    img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error(`Failed to load: ${iconName}`)) }
-    img.src = blobUrl
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error(`Failed to load: ${iconName}`))
+    img.src = src
   })
 }
 
-/** Load an icon with a given color (hex string or 'dark'/'light' theme shorthand). */
+/** Load an icon into the canvas image cache. */
 export function loadIcon(
   iconName: string,
   colorOrTheme: string,
@@ -53,10 +56,11 @@ export function loadIcon(
   if (imageCache.has(key)) {
     const cached = imageCache.get(key)!
     if (!(cached instanceof HTMLImageElement)) cached.then(() => onLoad?.()).catch(() => {})
+    else onLoad?.()
     return
   }
 
-  const promise = fetchIcon(iconName, hex)
+  const promise = iconToImage(iconName, hex)
   imageCache.set(key, promise)
   promise
     .then((img) => { imageCache.set(key, img); onLoad?.() })

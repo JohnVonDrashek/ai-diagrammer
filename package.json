@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.node.json && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "bake-icons": "node scripts/bake-icons.js"
   },
   "dependencies": {
     "react": "^19.0.0",
