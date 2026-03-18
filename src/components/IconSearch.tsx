@@ -33,26 +33,26 @@ function PreviewIcon({ iconName, label, onSelect }: PreviewIconProps) {
         alignItems: 'center',
         gap: 6,
         padding: '10px 8px',
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'var(--hover-bg-subtle)',
+        border: '1px solid var(--border-subtle)',
         borderRadius: 8,
         cursor: 'pointer',
-        color: '#e2e8f0',
+        color: 'var(--text)',
         transition: 'all 0.15s',
         minWidth: 72,
       }}
       onMouseEnter={(e) => {
         ;(e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.2)'
-        ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#6366f1'
+        ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent)'
       }}
       onMouseLeave={(e) => {
-        ;(e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)'
-        ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.08)'
+        ;(e.currentTarget as HTMLButtonElement).style.background = 'var(--hover-bg-subtle)'
+        ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-subtle)'
       }}
     >
       {loaded ? (
         <img
-          src={`https://api.iconify.design/${iconName.replace(':', '/')}.svg?height=40&color=%23e2e8f0`}
+          src={`https://api.iconify.design/${iconName.replace(':', '/')}.svg?height=40&color=${encodeURIComponent(getComputedStyle(document.documentElement).getPropertyValue('--text').trim())}`}
           width={40}
           height={40}
           alt={displayName}
@@ -72,7 +72,7 @@ function PreviewIcon({ iconName, label, onSelect }: PreviewIconProps) {
       <span
         style={{
           fontSize: 10,
-          color: 'rgba(226,232,240,0.7)',
+          color: 'var(--text-tertiary)',
           textAlign: 'center',
           maxWidth: 64,
           overflow: 'hidden',
@@ -89,7 +89,6 @@ function PreviewIcon({ iconName, label, onSelect }: PreviewIconProps) {
 export function IconSearch() {
   const { isIconSearchOpen, iconSearchQuery, closeIconSearch, setIconSearchQuery, swappingIconId } = useAppStore()
   const theme = useAppStore(selectResolvedTheme)
-  const isDark = theme === 'dark'
   const inputRef = useRef<HTMLInputElement>(null)
   const [results, setResults] = useState<Array<{ iconName: string; label: string }>>([])
   const [isAiLoading, setIsAiLoading] = useState(false)
@@ -125,7 +124,7 @@ export function IconSearch() {
           if (iconName) {
             setAiResult({ iconName, label: q })
             // Also preload the icon
-            loadIcon(iconName)
+            loadIcon(iconName, selectResolvedTheme(useAppStore.getState()))
           }
         }, 600)
       }
@@ -168,8 +167,8 @@ export function IconSearch() {
           zIndex: 100,
           width: 480,
           maxWidth: 'calc(100vw - 32px)',
-          background: isDark ? 'rgba(15,15,25,0.97)' : 'rgba(255,255,255,0.98)',
-          border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'}`,
+          background: 'var(--surface-overlay)',
+          border: '1px solid var(--border-muted)',
           borderRadius: 16,
           boxShadow: '0 24px 80px rgba(0,0,0,0.7)',
           backdropFilter: 'blur(20px)',
@@ -178,9 +177,9 @@ export function IconSearch() {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search input */}
-        <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}` }}>
+        <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isDark ? 'rgba(226,232,240,0.5)' : 'rgba(15,23,42,0.4)'} strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-icon)" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
@@ -200,13 +199,13 @@ export function IconSearch() {
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
-                color: isDark ? '#e2e8f0' : '#1e293b',
+                color: 'var(--text)',
                 fontSize: 16,
                 fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
               }}
             />
             {isAiLoading && (
-              <span style={{ fontSize: 11, color: '#6366f1', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 11, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
                 AI matching...
               </span>
             )}
@@ -215,7 +214,7 @@ export function IconSearch() {
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'rgba(226,232,240,0.4)',
+                color: 'var(--text-muted)',
                 cursor: 'pointer',
                 padding: 2,
                 lineHeight: 1,
@@ -229,12 +228,12 @@ export function IconSearch() {
         {/* Results */}
         <div style={{ padding: 12, minHeight: 80, maxHeight: 320, overflowY: 'auto' }}>
           {allResults.length === 0 && !isAiLoading && iconSearchQuery.trim() && (
-            <p style={{ color: isDark ? 'rgba(226,232,240,0.4)' : 'rgba(15,23,42,0.4)', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>
               No icons found. Try a different word.
             </p>
           )}
           {allResults.length === 0 && !iconSearchQuery.trim() && (
-            <p style={{ color: isDark ? 'rgba(226,232,240,0.4)' : 'rgba(15,23,42,0.4)', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>
               Type to search icons from the Material Design Icons library
             </p>
           )}
@@ -260,15 +259,15 @@ export function IconSearch() {
         <div
           style={{
             padding: '8px 16px',
-            borderTop: '1px solid rgba(255,255,255,0.06)',
+            borderTop: '1px solid var(--border-subtle)',
             display: 'flex',
             gap: 16,
             fontSize: 11,
-            color: 'rgba(226,232,240,0.35)',
+            color: 'var(--text-muted)',
           }}
         >
-          <span><kbd style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: 3 }}>Enter</kbd> place first</span>
-          <span><kbd style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: 3 }}>Esc</kbd> close</span>
+          <span><kbd style={{ background: 'var(--kbd-bg)', padding: '1px 5px', borderRadius: 3 }}>Enter</kbd> place first</span>
+          <span><kbd style={{ background: 'var(--kbd-bg)', padding: '1px 5px', borderRadius: 3 }}>Esc</kbd> close</span>
           <span>Click icon to place</span>
         </div>
       </div>

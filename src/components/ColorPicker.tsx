@@ -84,8 +84,6 @@ export function ColorPicker() {
   const cx = Math.max(MARGIN, Math.min(window.innerWidth - MARGIN, colorPickerPos.x))
   const cy = Math.max(MARGIN, Math.min(window.innerHeight - MARGIN, colorPickerPos.y))
 
-  const isDark = theme === 'dark'
-
   const apply = (color: string) => {
     if (isConn) updateConnection(selectedConnectionId!, { color: color || undefined })
     else updateElement(selectedId!, { color: color || undefined })
@@ -112,12 +110,10 @@ export function ColorPicker() {
           position: 'absolute',
           inset: 0,
           borderRadius: '50%',
-          background: isDark ? 'rgba(12,12,22,0.82)' : 'rgba(255,255,255,0.88)',
-          border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.09)'}`,
+          background: 'var(--surface-glass)',
+          border: '1px solid var(--border)',
           backdropFilter: 'blur(14px)',
-          boxShadow: isDark
-            ? '0 8px 40px rgba(0,0,0,0.55)'
-            : '0 8px 32px rgba(0,0,0,0.12)',
+          boxShadow: 'var(--shadow-lg)',
           pointerEvents: 'all',
         }} />
 
@@ -142,7 +138,7 @@ export function ColorPicker() {
                 height: SWATCH,
                 borderRadius: '50%',
                 background: p.value,
-                border: isActive ? '2.5px solid #fff' : `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'}`,
+                border: isActive ? '2.5px solid #fff' : '2px solid var(--border-muted)',
                 boxShadow: isActive ? `0 0 0 1.5px ${p.value}, 0 0 12px ${p.value}88` : '0 2px 6px rgba(0,0,0,0.25)',
                 cursor: 'pointer',
                 padding: 0,
@@ -164,7 +160,7 @@ export function ColorPicker() {
           pointerEvents: 'all',
           cursor: 'pointer',
           overflow: 'hidden',
-          border: `2px solid ${isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.15)'}`,
+          border: '2px solid var(--border-strong)',
           boxShadow: currentColor ? `0 0 0 1.5px ${currentColor}66` : 'none',
         }}
           title="Custom color"

@@ -4,8 +4,10 @@ import type { Theme } from '../store/types'
 const imageCache = new Map<string, HTMLImageElement | Promise<HTMLImageElement>>()
 
 export function themeToHex(theme: Theme | string): string {
-  if (theme === 'dark') return '#e2e8f0'
-  if (theme === 'light') return '#1e293b'
+  if (theme === 'dark' || theme === 'light') {
+    // Read the --text color from the active theme's CSS variables
+    return getComputedStyle(document.documentElement).getPropertyValue('--text').trim()
+  }
   return theme // already a hex string
 }
 
@@ -42,7 +44,7 @@ async function fetchIcon(iconName: string, hex: string): Promise<HTMLImageElemen
 /** Load an icon with a given color (hex string or 'dark'/'light' theme shorthand). */
 export function loadIcon(
   iconName: string,
-  colorOrTheme: string = 'dark',
+  colorOrTheme: string,
   onLoad?: () => void
 ): void {
   const hex = themeToHex(colorOrTheme)
@@ -62,7 +64,7 @@ export function loadIcon(
 }
 
 /** Get a cached icon image synchronously. Returns null if not yet loaded. */
-export function getIconImage(iconName: string, colorOrTheme: string = 'dark'): HTMLImageElement | null {
+export function getIconImage(iconName: string, colorOrTheme: string): HTMLImageElement | null {
   const cached = imageCache.get(cacheKey(iconName, themeToHex(colorOrTheme)))
   return cached instanceof HTMLImageElement ? cached : null
 }

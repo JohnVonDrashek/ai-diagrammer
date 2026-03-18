@@ -9,7 +9,6 @@ interface Shortcut {
 export function ShortcutsHint() {
   const { toolMode, selectedIds, selectedConnectionId, connectingFromId, isIconSearchOpen, textInputPos } = useAppStore()
   const theme = useAppStore(selectResolvedTheme)
-  const isDark = theme === 'dark'
 
   // Don't show when search or text input is open
   if (isIconSearchOpen || textInputPos) return null
@@ -66,13 +65,6 @@ export function ShortcutsHint() {
     ]
   }
 
-  const bg = isDark ? 'rgba(15,15,25,0.82)' : 'rgba(255,255,255,0.88)'
-  const border = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'
-  const labelCol = isDark ? 'rgba(226,232,240,0.35)' : 'rgba(15,23,42,0.4)'
-  const textCol = isDark ? 'rgba(226,232,240,0.6)' : 'rgba(15,23,42,0.65)'
-  const kbdBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
-  const kbdCol = isDark ? 'rgba(226,232,240,0.75)' : 'rgba(15,23,42,0.75)'
-
   return (
     <div
       style={{
@@ -80,17 +72,17 @@ export function ShortcutsHint() {
         bottom: 54,
         right: 20,
         zIndex: 40,
-        background: bg,
-        border: `1px solid ${border}`,
+        background: 'var(--surface-glass)',
+        border: '1px solid var(--border-subtle)',
         borderRadius: 10,
         padding: '10px 12px',
         backdropFilter: 'blur(12px)',
-        boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.08)',
+        boxShadow: 'var(--shadow-md)',
         minWidth: 180,
       }}
     >
       {/* Mode label */}
-      <div style={{ fontSize: 10, color: labelCol, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>
         {modeLabel}
       </div>
 
@@ -102,10 +94,10 @@ export function ShortcutsHint() {
                 <kbd
                   key={ki}
                   style={{
-                    background: s.highlight ? 'rgba(99,102,241,0.18)' : kbdBg,
-                    border: s.highlight ? '1px solid rgba(99,102,241,0.35)' : `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                    background: s.highlight ? 'var(--accent-bg)' : 'var(--kbd-bg)',
+                    border: s.highlight ? '1px solid var(--accent-highlight-border)' : '1px solid var(--border)',
                     borderRadius: 4,
-                    color: s.highlight ? '#a5b4fc' : kbdCol,
+                    color: s.highlight ? 'var(--accent-light)' : 'var(--text-kbd)',
                     fontSize: 11,
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     padding: '1px 6px',
@@ -117,7 +109,7 @@ export function ShortcutsHint() {
                 </kbd>
               ))}
             </div>
-            <span style={{ fontSize: 11, color: s.highlight ? (isDark ? 'rgba(226,232,240,0.8)' : 'rgba(15,23,42,0.8)') : textCol, textAlign: 'right' }}>
+            <span style={{ fontSize: 11, color: s.highlight ? 'var(--text-secondary)' : 'var(--text-tertiary)', textAlign: 'right' }}>
               {s.description}
             </span>
           </div>

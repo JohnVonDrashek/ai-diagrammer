@@ -37,7 +37,6 @@ export function RenameInput() {
 
   // Position the input at the top-center of the element in screen space
   const screenPos = worldToScreen(el.x + el.width / 2, el.y, viewport)
-  const isDark = theme === 'dark'
 
   return (
     <div
@@ -61,16 +60,16 @@ export function RenameInput() {
         onBlur={confirm}
         placeholder={el.type === 'icon' ? 'Label…' : 'Name…'}
         style={{
-          background: isDark ? 'rgba(15,15,25,0.96)' : 'rgba(255,255,255,0.97)',
-          border: `1px solid ${isDark ? 'rgba(99,102,241,0.55)' : 'rgba(99,102,241,0.45)'}`,
+          background: 'var(--surface-overlay)',
+          border: '1px solid var(--accent-border)',
           borderRadius: 6,
-          color: isDark ? '#e2e8f0' : '#1e293b',
+          color: 'var(--text)',
           fontSize: 13,
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           padding: '4px 10px',
           outline: 'none',
           minWidth: 140,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          boxShadow: 'var(--shadow-input)',
           textAlign: 'center',
         }}
       />

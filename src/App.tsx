@@ -8,6 +8,7 @@ import { DiagramTabs } from './components/DiagramTabs'
 import { RenameInput } from './components/RenameInput'
 import { ContextMenu } from './components/ContextMenu'
 import { useAppStore, selectResolvedTheme } from './store/useAppStore'
+import { invalidateThemeColors } from './themes/themeColors'
 
 export default function App() {
   const resolvedTheme = useAppStore(selectResolvedTheme)
@@ -25,6 +26,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', resolvedTheme)
+    invalidateThemeColors()
   }, [resolvedTheme])
 
   return (

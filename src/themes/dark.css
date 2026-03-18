@@ -1,0 +1,72 @@
+:root[data-theme="dark"] {
+  /* Core */
+  --bg: #0a0a12;
+  --text: #e2e8f0;
+
+  /* Surfaces */
+  --surface: rgba(15,15,25,0.92);
+  --surface-overlay: rgba(15,15,25,0.97);
+  --surface-dim: rgba(12,12,20,0.92);
+  --surface-glass: rgba(12,12,22,0.82);
+
+  /* Borders */
+  --border: rgba(255,255,255,0.1);
+  --border-subtle: rgba(255,255,255,0.08);
+  --border-muted: rgba(255,255,255,0.12);
+  --border-strong: rgba(255,255,255,0.18);
+
+  /* Text levels */
+  --text-strong: rgba(226,232,240,0.95);
+  --text-secondary: rgba(226,232,240,0.8);
+  --text-tertiary: rgba(226,232,240,0.6);
+  --text-muted: rgba(226,232,240,0.4);
+  --text-kbd: rgba(226,232,240,0.75);
+  --text-faint: rgba(226,232,240,0.28);
+  --text-icon: rgba(226,232,240,0.5);
+  --text-tab-inactive: rgba(226,232,240,0.45);
+
+  /* Interactive */
+  --hover-bg: rgba(255,255,255,0.07);
+  --hover-bg-subtle: rgba(255,255,255,0.06);
+  --kbd-bg: rgba(255,255,255,0.08);
+
+  /* Accent */
+  --accent: #6366f1;
+  --accent-light: #a5b4fc;
+  --accent-border: rgba(99,102,241,0.55);
+  --accent-border-strong: rgba(99,102,241,0.6);
+  --accent-bg: rgba(99,102,241,0.18);
+  --accent-bg-subtle: rgba(99,102,241,0.15);
+  --accent-highlight-border: rgba(99,102,241,0.35);
+
+  /* Canvas */
+  --canvas-grid: rgba(255,255,255,0.04);
+  --canvas-grid-accent: rgba(255,255,255,0.09);
+  --canvas-box-stroke: rgba(148,163,184,0.35);
+  --canvas-box-fill: rgba(148,163,184,0.1);
+  --canvas-box-glow: rgba(148,163,184,0.5);
+  --canvas-box-text: rgba(148,163,184,0.65);
+  --canvas-connection: rgba(148,163,184,0.6);
+  --canvas-connection-preview: rgba(99,102,241,0.7);
+  --canvas-label-bg: rgba(15,15,25,0.75);
+  --canvas-label-text: rgba(226,232,240,0.9);
+  --canvas-label-text-secondary: rgba(226,232,240,0.8);
+  --canvas-placeholder-fill: rgba(99,102,241,0.15);
+  --canvas-placeholder-stroke: rgba(99,102,241,0.4);
+  --canvas-placeholder-dot: rgba(99,102,241,0.6);
+  --canvas-marquee-fill: rgba(99,102,241,0.08);
+  --canvas-origin: rgba(99,102,241,0.5);
+
+  /* Shadows */
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.4);
+  --shadow-input: 0 4px 20px rgba(0,0,0,0.3);
+
+  /* Scrollbar */
+  --scrollbar: rgba(255,255,255,0.15);
+  --scrollbar-hover: rgba(255,255,255,0.25);
+
+  /* Danger */
+  --danger: #f87171;
+  --danger-bg: rgba(248,113,113,0.1);
+}

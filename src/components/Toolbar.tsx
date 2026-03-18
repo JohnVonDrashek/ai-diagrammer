@@ -70,24 +70,22 @@ export function Toolbar() {
         display: 'flex',
         alignItems: 'center',
         gap: 4,
-        background: isDark ? 'rgba(15,15,25,0.92)' : 'rgba(255,255,255,0.92)',
-        border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
         borderRadius: 12,
         padding: '6px 10px',
         backdropFilter: 'blur(16px)',
-        boxShadow: isDark
-          ? '0 8px 32px rgba(0,0,0,0.5)'
-          : '0 8px 32px rgba(0,0,0,0.12)',
-        color: isDark ? '#e2e8f0' : '#1e293b',
+        boxShadow: 'var(--shadow-lg)',
+        color: 'var(--text)',
       }}
     >
       {/* App name */}
-      <span style={{ color: '#6366f1', fontWeight: 700, fontSize: 14, letterSpacing: '-0.3px', paddingRight: 8, borderRight: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, marginRight: 4 }}>
+      <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 14, letterSpacing: '-0.3px', paddingRight: 8, borderRight: '1px solid var(--border)', marginRight: 4 }}>
         diagramr
       </span>
 
       {/* Add icon */}
-      <ToolBtn title="Add icon (I)" onClick={() => openIconSearch()} isDark={isDark}>
+      <ToolBtn title="Add icon (I)" onClick={() => openIconSearch()}>
         <IconSvg d="M12 5v14M5 12h14" /> Icon
       </ToolBtn>
 
@@ -95,7 +93,6 @@ export function Toolbar() {
       <ToolBtn
         title="Text tool (T)"
         onClick={() => { /* T key handles it */ useAppStore.getState().openTextInput(400, 300) }}
-        isDark={isDark}
         active={toolMode === 'text'}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -109,8 +106,8 @@ export function Toolbar() {
         <button
           onClick={() => changeFontSize(-2)}
           title="Decrease font size"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: isDark ? 'rgba(226,232,240,0.6)' : 'rgba(15,23,42,0.6)', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4 }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4 }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--hover-bg)' }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none' }}
         >−</button>
         <input
@@ -122,8 +119,8 @@ export function Toolbar() {
           title="Font size (applies to all text)"
           style={{
             width: 34, textAlign: 'center', background: 'transparent',
-            border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-            borderRadius: 4, color: isDark ? 'rgba(226,232,240,0.8)' : 'rgba(15,23,42,0.8)',
+            border: '1px solid var(--border)',
+            borderRadius: 4, color: 'var(--text-secondary)',
             fontSize: 11, padding: '2px 0', outline: 'none',
             MozAppearance: 'textfield',
           } as React.CSSProperties}
@@ -131,26 +128,25 @@ export function Toolbar() {
         <button
           onClick={() => changeFontSize(2)}
           title="Increase font size"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: isDark ? 'rgba(226,232,240,0.6)' : 'rgba(15,23,42,0.6)', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4 }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4 }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--hover-bg)' }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none' }}
         >+</button>
       </div>
 
       {/* Delete */}
       {selectedIds.length > 0 && (
-        <ToolBtn title="Delete (⌫)" onClick={() => deleteSelected()} isDark={isDark} danger>
+        <ToolBtn title="Delete (⌫)" onClick={() => deleteSelected()} danger>
           <IconSvg d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
         </ToolBtn>
       )}
 
-      <Divider isDark={isDark} />
+      <Divider />
 
       {/* Hierarchy move toggle */}
       <ToolBtn
         title={hierarchyMove ? 'Hierarchy move on — box moves carry contents (click to disable)' : 'Hierarchy move off — click to enable'}
         onClick={toggleHierarchyMove}
-        isDark={isDark}
         active={hierarchyMove}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -165,7 +161,6 @@ export function Toolbar() {
       <ToolBtn
         title={rotationEnabled ? 'Rotation enabled (click to lock)' : 'Rotation locked (click to enable)'}
         onClick={toggleRotation}
-        isDark={isDark}
         active={rotationEnabled}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -182,7 +177,7 @@ export function Toolbar() {
         <button
           onClick={resetView}
           title="Reset rotation to origin (O)"
-          style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 6, color: '#a5b4fc', padding: '3px 8px', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+          style={{ background: 'var(--accent-bg-subtle)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 6, color: 'var(--accent-light)', padding: '3px 8px', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M1 4v6h6M23 20v-6h-6"/>
@@ -193,17 +188,16 @@ export function Toolbar() {
       )}
 
       {/* Zoom */}
-      <span style={{ color: isDark ? 'rgba(226,232,240,0.4)' : 'rgba(15,23,42,0.4)', fontSize: 11, minWidth: 36, textAlign: 'center' }}>
+      <span style={{ color: 'var(--text-muted)', fontSize: 11, minWidth: 36, textAlign: 'center' }}>
         {Math.round(viewport.zoom * 100)}%
       </span>
 
-      <Divider isDark={isDark} />
+      <Divider />
 
       {/* Theme toggle — cycles system → dark → light */}
       <ToolBtn
         title={`Theme: ${theme} (click to cycle)`}
         onClick={toggleTheme}
-        isDark={isDark}
         active={theme !== 'system'}
       >
         {theme === 'system' ? (
@@ -227,13 +221,13 @@ export function Toolbar() {
       </ToolBtn>
 
       {/* Export / Import */}
-      <Divider isDark={isDark} />
-      <ToolBtn title="Export diagram as JSON" onClick={handleExport} isDark={isDark}>
+      <Divider />
+      <ToolBtn title="Export diagram as JSON" onClick={handleExport}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
         </svg>
       </ToolBtn>
-      <ToolBtn title="Import diagram from JSON" onClick={() => fileInputRef.current?.click()} isDark={isDark}>
+      <ToolBtn title="Import diagram from JSON" onClick={() => fileInputRef.current?.click()}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
@@ -241,23 +235,23 @@ export function Toolbar() {
       <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
 
       {/* Shortcut hints */}
-      <Divider isDark={isDark} />
-      <div style={{ fontSize: 10, color: isDark ? 'rgba(226,232,240,0.28)' : 'rgba(15,23,42,0.35)', display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Kbd isDark={isDark}>I</Kbd>
-        <Kbd isDark={isDark}>T</Kbd>
+      <Divider />
+      <div style={{ fontSize: 10, color: 'var(--text-faint)', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <Kbd>I</Kbd>
+        <Kbd>T</Kbd>
         <span title="Hold ⌥ Option + scroll to rotate">⌥+scroll rotate</span>
       </div>
     </div>
   )
 }
 
-function Divider({ isDark }: { isDark: boolean }) {
-  return <div style={{ width: 1, height: 18, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)', margin: '0 3px' }} />
+function Divider() {
+  return <div style={{ width: 1, height: 18, background: 'var(--border-subtle)', margin: '0 3px' }} />
 }
 
-function Kbd({ children, isDark }: { children: React.ReactNode; isDark: boolean }) {
+function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd style={{ background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)', padding: '1px 5px', borderRadius: 3, fontSize: 10, fontFamily: 'inherit' }}>
+    <kbd style={{ background: 'var(--kbd-bg)', padding: '1px 5px', borderRadius: 3, fontSize: 10, fontFamily: 'inherit' }}>
       {children}
     </kbd>
   )
@@ -272,12 +266,11 @@ function IconSvg({ d }: { d: string }) {
 }
 
 function ToolBtn({
-  children, onClick, title, isDark, danger, active,
+  children, onClick, title, danger, active,
 }: {
   children: React.ReactNode
   onClick: () => void
   title: string
-  isDark: boolean
   danger?: boolean
   active?: boolean
 }) {
@@ -290,12 +283,12 @@ function ToolBtn({
         background: active ? 'rgba(99,102,241,0.2)' : 'transparent',
         border: active ? '1px solid rgba(99,102,241,0.4)' : '1px solid transparent',
         borderRadius: 6,
-        color: danger ? '#f87171' : active ? '#a5b4fc' : isDark ? 'rgba(226,232,240,0.75)' : 'rgba(15,23,42,0.75)',
+        color: danger ? 'var(--danger)' : active ? 'var(--accent-light)' : 'var(--text-kbd)',
         padding: '3px 8px', cursor: 'pointer', fontSize: 12, transition: 'all 0.12s',
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget
-        el.style.background = danger ? 'rgba(248,113,113,0.1)' : active ? 'rgba(99,102,241,0.25)' : isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'
+        el.style.background = danger ? 'var(--danger-bg)' : active ? 'rgba(99,102,241,0.25)' : 'var(--hover-bg)'
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget

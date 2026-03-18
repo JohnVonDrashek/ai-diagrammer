@@ -4,7 +4,6 @@ import { useAppStore, selectResolvedTheme } from '../store/useAppStore'
 export function DiagramTabs() {
   const { diagrams, activeDiagramId, createDiagram, switchDiagram, renameDiagram, deleteDiagram } = useAppStore()
   const resolvedTheme = useAppStore(selectResolvedTheme)
-  const isDark = resolvedTheme === 'dark'
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -26,10 +25,6 @@ export function DiagramTabs() {
     }
   }
 
-  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
-  const textMuted = isDark ? 'rgba(226,232,240,0.45)' : 'rgba(15,23,42,0.45)'
-  const textActive = isDark ? '#e2e8f0' : '#1e293b'
-
   return (
     <div
       style={{
@@ -40,8 +35,8 @@ export function DiagramTabs() {
         alignItems: 'center',
         paddingLeft: 8,
         gap: 2,
-        background: isDark ? 'rgba(12,12,20,0.92)' : 'rgba(248,250,252,0.94)',
-        borderTop: `1px solid ${border}`,
+        background: 'var(--surface-dim)',
+        borderTop: '1px solid var(--border-subtle)',
         backdropFilter: 'blur(16px)',
         zIndex: 40,
         userSelect: 'none',
@@ -65,14 +60,14 @@ export function DiagramTabs() {
               borderRadius: '6px 6px 0 0',
               cursor: isEditing ? 'default' : 'pointer',
               background: isActive
-                ? (isDark ? 'rgba(99,102,241,0.18)' : 'rgba(99,102,241,0.1)')
+                ? 'var(--accent-bg)'
                 : 'transparent',
-              borderBottom: isActive ? '2px solid #6366f1' : '2px solid transparent',
+              borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
               transition: 'background 0.12s',
               flexShrink: 0,
             }}
             onMouseEnter={(e) => {
-              if (!isActive) (e.currentTarget as HTMLDivElement).style.background = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'
+              if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--hover-bg-subtle)'
             }}
             onMouseLeave={(e) => {
               if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'transparent'
@@ -93,7 +88,7 @@ export function DiagramTabs() {
                   background: 'transparent',
                   border: 'none',
                   outline: 'none',
-                  color: textActive,
+                  color: 'var(--text)',
                   fontSize: 12,
                   fontFamily: 'inherit',
                   width: Math.max(60, editValue.length * 7.5),
@@ -101,7 +96,7 @@ export function DiagramTabs() {
                 }}
               />
             ) : (
-              <span style={{ fontSize: 12, color: isActive ? textActive : textMuted, whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 12, color: isActive ? 'var(--text)' : 'var(--text-tab-inactive)', whiteSpace: 'nowrap' }}>
                 {diagram.name}
               </span>
             )}
@@ -112,7 +107,7 @@ export function DiagramTabs() {
                 title="Close diagram"
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  color: textMuted, fontSize: 13, lineHeight: 1,
+                  color: 'var(--text-tab-inactive)', fontSize: 13, lineHeight: 1,
                   padding: '0 0 0 2px', opacity: 0,
                   transition: 'opacity 0.1s',
                   display: 'flex', alignItems: 'center',
@@ -133,14 +128,14 @@ export function DiagramTabs() {
         title="New diagram (⌘⇧N)"
         style={{
           background: 'none', border: 'none', cursor: 'pointer',
-          color: textMuted, fontSize: 18, lineHeight: 1,
+          color: 'var(--text-tab-inactive)', fontSize: 18, lineHeight: 1,
           padding: '0 8px', height: 26,
           display: 'flex', alignItems: 'center',
           borderRadius: 4,
           transition: 'color 0.12s',
         }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = textActive }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = textMuted }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)' }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-tab-inactive)' }}
       >
         +
       </button>

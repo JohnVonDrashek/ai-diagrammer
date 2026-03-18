@@ -70,7 +70,6 @@ function TextInputOverlay() {
     addElement(el); setSelected(el.id); closeTextInput()
   }
 
-  const isDark = theme === 'dark'
   return (
     <div style={{ position: 'fixed', left: textInputPos.screenX, top: textInputPos.screenY, zIndex: 200, transform: 'translate(-8px, -8px)' }}>
       <input
@@ -81,12 +80,12 @@ function TextInputOverlay() {
         onBlur={confirm}
         placeholder="Type text…"
         style={{
-          background: isDark ? 'rgba(15,15,25,0.95)' : 'rgba(255,255,255,0.97)',
-          border: `1px solid ${isDark ? 'rgba(99,102,241,0.6)' : 'rgba(99,102,241,0.5)'}`,
-          borderRadius: 6, color: isDark ? '#e2e8f0' : '#1e293b',
+          background: 'var(--surface-overlay)',
+          border: '1px solid var(--accent-border-strong)',
+          borderRadius: 6, color: 'var(--text)',
           fontSize: 16, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           padding: '4px 10px', outline: 'none', minWidth: 180,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          boxShadow: 'var(--shadow-input)',
         }}
       />
     </div>

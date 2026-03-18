@@ -1,33 +1,11 @@
 import type { DiagramElement, ViewportState, Theme, ConnectionElement, BoxElement } from '../store/types'
 import { buildViewportMatrix } from './ViewportMatrix'
 import { getIconImage, loadIcon, themeToHex } from '../icons/iconifyClient'
+import { getThemeColors, type ThemeColors } from '../themes/themeColors'
 
 const GRID_SIZE = 40
 
-function gridColors(theme: Theme) {
-  return theme === 'dark'
-    ? { line: 'rgba(255,255,255,0.04)', accent: 'rgba(255,255,255,0.09)' }
-    : { line: 'rgba(0,0,0,0.05)', accent: 'rgba(0,0,0,0.12)' }
-}
-
-function labelColor(theme: Theme) {
-  return theme === 'dark' ? 'rgba(226,232,240,0.9)' : 'rgba(30,41,59,0.9)'
-}
-
-function placeholderColors(theme: Theme) {
-  return theme === 'dark'
-    ? { fill: 'rgba(99,102,241,0.15)', stroke: 'rgba(99,102,241,0.4)', dot: 'rgba(99,102,241,0.6)' }
-    : { fill: 'rgba(99,102,241,0.08)', stroke: 'rgba(99,102,241,0.35)', dot: 'rgba(99,102,241,0.5)' }
-}
-
-// Icon tint: dark theme gets light icons, light theme gets dark icons
-export function iconTint(theme: Theme) {
-  return theme === 'dark' ? '%23e2e8f0' : '%231e293b'
-}
-
-function drawGrid(ctx: CanvasRenderingContext2D, vp: ViewportState, cssW: number, cssH: number, theme: Theme) {
-  // Draw grid in world space (already transformed)
-  // Find visible world bounds by inverse-transforming canvas corners
+function drawGrid(ctx: CanvasRenderingContext2D, vp: ViewportState, cssW: number, cssH: number, tc: ThemeColors) {
   const matrix = buildViewportMatrix(vp)
   const inv = matrix.inverse()
 
@@ -48,11 +26,10 @@ function drawGrid(ctx: CanvasRenderingContext2D, vp: ViewportState, cssW: number
   const startX = Math.floor(minX / GRID_SIZE) * GRID_SIZE
   const startY = Math.floor(minY / GRID_SIZE) * GRID_SIZE
 
-  const { line, accent } = gridColors(theme)
   ctx.lineWidth = 1 / vp.zoom
 
   for (let x = startX; x <= maxX + GRID_SIZE; x += GRID_SIZE) {
-    ctx.strokeStyle = x % (GRID_SIZE * 5) === 0 ? accent : line
+    ctx.strokeStyle = x % (GRID_SIZE * 5) === 0 ? tc.canvasGridAccent : tc.canvasGrid
     ctx.beginPath()
     ctx.moveTo(x, minY - GRID_SIZE)
     ctx.lineTo(x, maxY + GRID_SIZE)
@@ -60,7 +37,7 @@ function drawGrid(ctx: CanvasRenderingContext2D, vp: ViewportState, cssW: number
   }
 
   for (let y = startY; y <= maxY + GRID_SIZE; y += GRID_SIZE) {
-    ctx.strokeStyle = y % (GRID_SIZE * 5) === 0 ? accent : line
+    ctx.strokeStyle = y % (GRID_SIZE * 5) === 0 ? tc.canvasGridAccent : tc.canvasGrid
     ctx.beginPath()
     ctx.moveTo(minX - GRID_SIZE, y)
     ctx.lineTo(maxX + GRID_SIZE, y)
@@ -68,19 +45,15 @@ function drawGrid(ctx: CanvasRenderingContext2D, vp: ViewportState, cssW: number
   }
 }
 
-function drawOriginMarker(ctx: CanvasRenderingContext2D, vp: ViewportState, theme: Theme) {
-  const s = 10 / vp.zoom   // arm length in world units — stays ~10px on screen
-  const r = 3 / vp.zoom    // centre dot radius
-  const color = theme === 'dark' ? 'rgba(99,102,241,0.5)' : 'rgba(99,102,241,0.45)'
+function drawOriginMarker(ctx: CanvasRenderingContext2D, vp: ViewportState, tc: ThemeColors) {
+  const s = 10 / vp.zoom
+  const r = 3 / vp.zoom
   ctx.save()
-  ctx.strokeStyle = color
-  ctx.fillStyle = color
+  ctx.strokeStyle = tc.canvasOrigin
+  ctx.fillStyle = tc.canvasOrigin
   ctx.lineWidth = 1.5 / vp.zoom
-  // Horizontal arm
   ctx.beginPath(); ctx.moveTo(-s, 0); ctx.lineTo(s, 0); ctx.stroke()
-  // Vertical arm
   ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(0, s); ctx.stroke()
-  // Centre dot
   ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill()
   ctx.restore()
 }
@@ -91,26 +64,24 @@ function drawIconElement(
   selected: boolean,
   showHandles: boolean,
   theme: Theme,
-  fontSize: number
+  fontSize: number,
+  tc: ThemeColors
 ) {
-  // Resolve which color variant to use
   const colorKey = el.color ?? theme
   const img = getIconImage(el.iconName, colorKey)
 
   if (img) {
     ctx.drawImage(img, el.x, el.y, el.width, el.height)
   } else {
-    // Kick off load if not started, render loop picks it up next frame
     loadIcon(el.iconName, colorKey)
-    const ph = placeholderColors(theme)
-    ctx.fillStyle = ph.fill
-    ctx.strokeStyle = ph.stroke
+    ctx.fillStyle = tc.canvasPlaceholderFill
+    ctx.strokeStyle = tc.canvasPlaceholderStroke
     ctx.lineWidth = 1.5
     ctx.beginPath()
     ctx.roundRect(el.x, el.y, el.width, el.height, 8)
     ctx.fill()
     ctx.stroke()
-    ctx.fillStyle = ph.dot
+    ctx.fillStyle = tc.canvasPlaceholderDot
     const cx = el.x + el.width / 2
     const cy = el.y + el.height / 2
     for (let i = 0; i < 3; i++) {
@@ -121,7 +92,7 @@ function drawIconElement(
   }
 
   if (el.label) {
-    ctx.fillStyle = el.color ?? labelColor(theme)
+    ctx.fillStyle = el.color ?? tc.canvasLabelText
     ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
@@ -129,8 +100,8 @@ function drawIconElement(
   }
 
   if (selected) {
-    ctx.strokeStyle = '#6366f1'
-    ctx.lineWidth = 2 / 1  // we handle zoom outside
+    ctx.strokeStyle = tc.accent
+    ctx.lineWidth = 2 / 1
     ctx.setLineDash([4, 2])
     ctx.beginPath()
     ctx.roundRect(el.x - 3, el.y - 3, el.width + 6, el.height + 6, 6)
@@ -138,8 +109,7 @@ function drawIconElement(
     ctx.setLineDash([])
 
     if (showHandles) {
-      // Resize handles
-      drawHandles(ctx, el)
+      drawHandles(ctx, el, tc)
     }
   }
 }
@@ -149,22 +119,21 @@ function drawBoxElement(
   el: BoxElement,
   selected: boolean,
   showHandles: boolean,
-  theme: Theme,
-  fontSize: number
+  _theme: Theme,
+  fontSize: number,
+  tc: ThemeColors
 ) {
-  const isDark = theme === 'dark'
   const boxStyle = el.style ?? 'solid'
-  const glowColor = el.color ?? (isDark ? 'rgba(148,163,184,0.5)' : 'rgba(100,116,139,0.5)')
-  const strokeColor = el.color ?? (isDark ? 'rgba(148,163,184,0.35)' : 'rgba(100,116,139,0.4)')
+  const glowColor = el.color ?? tc.canvasBoxGlow
+  const strokeColor = el.color ?? tc.canvasBoxStroke
 
   ctx.save()
   ctx.beginPath()
   ctx.roundRect(el.x, el.y, el.width, el.height, 10)
 
   if (boxStyle === 'filled') {
-    // Fill at low opacity so color shows as a tint rather than a solid block
     ctx.globalAlpha = el.color ? 0.15 : 1
-    ctx.fillStyle = el.color ?? (isDark ? 'rgba(148,163,184,0.1)' : 'rgba(100,116,139,0.08)')
+    ctx.fillStyle = el.color ?? tc.canvasBoxFill
     ctx.fill()
     ctx.globalAlpha = 1
     ctx.shadowColor = glowColor
@@ -174,7 +143,6 @@ function drawBoxElement(
     ctx.setLineDash([])
     ctx.stroke()
   } else {
-    // Glow pass
     ctx.shadowColor = glowColor
     ctx.shadowBlur = el.color ? 14 : 6
     ctx.strokeStyle = el.color ?? strokeColor
@@ -184,12 +152,9 @@ function drawBoxElement(
   }
   ctx.restore()
 
-  // Label top-left
   if (el.text) {
     ctx.save()
-    ctx.fillStyle = el.color
-      ? el.color
-      : (isDark ? 'rgba(148,163,184,0.65)' : 'rgba(71,85,105,0.7)')
+    ctx.fillStyle = el.color ?? tc.canvasBoxText
     ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
@@ -198,7 +163,7 @@ function drawBoxElement(
   }
 
   if (selected) {
-    ctx.strokeStyle = '#6366f1'
+    ctx.strokeStyle = tc.accent
     ctx.lineWidth = 2
     ctx.setLineDash([4, 2])
     ctx.beginPath()
@@ -207,7 +172,7 @@ function drawBoxElement(
     ctx.setLineDash([])
   }
 
-  if (selected && showHandles) drawHandles(ctx, el)
+  if (selected && showHandles) drawHandles(ctx, el, tc)
 }
 
 function drawTextElement(
@@ -215,10 +180,11 @@ function drawTextElement(
   el: import('../store/types').TextElement,
   selected: boolean,
   showHandles: boolean,
-  theme: Theme,
-  fontSize: number
+  _theme: Theme,
+  fontSize: number,
+  tc: ThemeColors
 ) {
-  ctx.fillStyle = el.color ?? (theme === 'dark' ? 'rgba(226,232,240,0.95)' : 'rgba(15,23,42,0.95)')
+  ctx.fillStyle = el.color ?? tc.canvasTextStrong
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
@@ -228,21 +194,22 @@ function drawTextElement(
     const metrics = ctx.measureText(el.text)
     const w = metrics.width
     const h = fontSize * 1.2
-    ctx.strokeStyle = '#6366f1'
+    ctx.strokeStyle = tc.accent
     ctx.lineWidth = 1.5
     ctx.setLineDash([4, 2])
     ctx.strokeRect(el.x - 4, el.y - 4, w + 8, h + 8)
     ctx.setLineDash([])
 
     if (showHandles) {
-      drawHandles(ctx, { x: el.x - 4, y: el.y - 4, width: w + 8, height: h + 8 })
+      drawHandles(ctx, { x: el.x - 4, y: el.y - 4, width: w + 8, height: h + 8 }, tc)
     }
   }
 }
 
 function drawHandles(
   ctx: CanvasRenderingContext2D,
-  el: { x: number; y: number; width: number; height: number }
+  el: { x: number; y: number; width: number; height: number },
+  tc: ThemeColors
 ) {
   const handleSize = 7
   const positions = [
@@ -256,8 +223,8 @@ function drawHandles(
     [el.x, el.y + el.height / 2],
   ]
 
-  ctx.fillStyle = '#ffffff'
-  ctx.strokeStyle = '#6366f1'
+  ctx.fillStyle = tc.handleFill
+  ctx.strokeStyle = tc.accent
   ctx.lineWidth = 1.5
 
   for (const [hx, hy] of positions) {
@@ -274,7 +241,6 @@ function elementCenter(el: DiagramElement) {
   return { x: el.x + el.width / 2, y: el.y + el.height / 2 }
 }
 
-/** Find the point where a line from `from` to `to` exits the element's bounding box */
 function bboxEdgePoint(
   el: DiagramElement,
   from: { x: number; y: number }
@@ -311,7 +277,6 @@ function drawArrow(
     ctx.setLineDash([8, 5])
   } else if (connStyle === 'animated') {
     ctx.setLineDash([8, 5])
-    // Offset marches forward over time — render loop calls this every rAF frame
     ctx.lineDashOffset = -(performance.now() / 40) % 13
   }
 
@@ -342,11 +307,11 @@ function drawConnections(
   connections: ConnectionElement[],
   elements: DiagramElement[],
   selectedConnectionId: string | null,
-  theme: 'dark' | 'light',
-  fontSize: number
+  _theme: 'dark' | 'light',
+  fontSize: number,
+  tc: ThemeColors
 ) {
   const elMap = new Map(elements.map((e) => [e.id, e]))
-  const defaultColor = theme === 'dark' ? 'rgba(148,163,184,0.6)' : 'rgba(71,85,105,0.6)'
 
   for (const conn of connections) {
     const from = elMap.get(conn.fromId)
@@ -356,11 +321,11 @@ function drawConnections(
     const start = bboxEdgePoint(from, elementCenter(to))
     const end = bboxEdgePoint(to, elementCenter(from))
     const selected = conn.id === selectedConnectionId
-    const color = conn.color ?? (selected ? '#6366f1' : defaultColor)
+    const color = conn.color ?? (selected ? tc.accent : tc.canvasConnection)
 
     ctx.save()
     if (selected) {
-      ctx.shadowColor = conn.color ?? '#6366f1'
+      ctx.shadowColor = conn.color ?? tc.accent
       ctx.shadowBlur = 10
     }
     drawArrow(ctx, start.x, start.y, end.x, end.y, color, conn.style ?? 'solid')
@@ -370,17 +335,16 @@ function drawConnections(
       const mx = (start.x + end.x) / 2
       const my = (start.y + end.y) / 2
       ctx.save()
-      ctx.fillStyle = conn.color ?? (theme === 'dark' ? 'rgba(226,232,240,0.8)' : 'rgba(30,41,59,0.8)')
+      ctx.fillStyle = conn.color ?? tc.canvasLabelTextSecondary
       ctx.font = `${Math.max(10, fontSize - 2)}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      // Small bg pill for readability
       const tw = ctx.measureText(conn.label).width
-      ctx.fillStyle = theme === 'dark' ? 'rgba(15,15,25,0.75)' : 'rgba(241,245,249,0.85)'
+      ctx.fillStyle = tc.canvasLabelBg
       ctx.beginPath()
       ctx.roundRect(mx - tw / 2 - 5, my - 10, tw + 10, 18, 4)
       ctx.fill()
-      ctx.fillStyle = conn.color ?? (theme === 'dark' ? 'rgba(226,232,240,0.9)' : 'rgba(30,41,59,0.9)')
+      ctx.fillStyle = conn.color ?? tc.canvasLabelText
       ctx.fillText(conn.label, mx, my)
       ctx.restore()
     }
@@ -391,17 +355,18 @@ function drawConnectionPreview(
   ctx: CanvasRenderingContext2D,
   fromEl: DiagramElement,
   previewPos: { x: number; y: number },
-  theme: 'dark' | 'light'
+  _theme: 'dark' | 'light',
+  tc: ThemeColors
 ) {
   const start = bboxEdgePoint(fromEl, previewPos)
-  const color = theme === 'dark' ? 'rgba(99,102,241,0.7)' : 'rgba(99,102,241,0.8)'
-  drawArrow(ctx, start.x, start.y, previewPos.x, previewPos.y, color, 'dashed')
+  drawArrow(ctx, start.x, start.y, previewPos.x, previewPos.y, tc.canvasConnectionPreview, 'dashed')
 }
 
 function drawMarquee(
   ctx: CanvasRenderingContext2D,
   rect: { x1: number; y1: number; x2: number; y2: number },
-  theme: 'dark' | 'light'
+  _theme: 'dark' | 'light',
+  tc: ThemeColors
 ) {
   const { x1, y1, x2, y2 } = rect
   const x = Math.min(x1, x2)
@@ -409,32 +374,30 @@ function drawMarquee(
   const w = Math.abs(x2 - x1)
   const h = Math.abs(y2 - y1)
   ctx.save()
-  ctx.fillStyle = theme === 'dark' ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.06)'
+  ctx.fillStyle = tc.canvasMarqueeFill
   ctx.fillRect(x, y, w, h)
-  ctx.strokeStyle = '#6366f1'
+  ctx.strokeStyle = tc.accent
   ctx.lineWidth = 1
   ctx.setLineDash([4, 3])
-  // Draw the two arms FROM the drag origin as separate paths so each resets
-  // dash offset to 0 — dashes grow outward from (x1,y1) without shifting.
+
   ctx.beginPath()
   ctx.moveTo(x1, y1)
-  ctx.lineTo(x2, y1)  // horizontal arm from origin
+  ctx.lineTo(x2, y1)
   ctx.stroke()
 
   ctx.beginPath()
   ctx.moveTo(x1, y1)
-  ctx.lineTo(x1, y2)  // vertical arm from origin
+  ctx.lineTo(x1, y2)
   ctx.stroke()
 
-  // Far closing edges — each its own path so dash offset starts at 0
   ctx.beginPath()
   ctx.moveTo(x2, y1)
-  ctx.lineTo(x2, y2)  // right edge grows down from top-arm endpoint
+  ctx.lineTo(x2, y2)
   ctx.stroke()
 
   ctx.beginPath()
   ctx.moveTo(x1, y2)
-  ctx.lineTo(x2, y2)  // bottom edge grows right from left-arm endpoint
+  ctx.lineTo(x2, y2)
   ctx.stroke()
   ctx.setLineDash([])
   ctx.restore()
@@ -459,6 +422,8 @@ export function render(
   theme: 'dark' | 'light',
   defaultFontSize: number
 ) {
+  const tc = getThemeColors()
+
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.clearRect(0, 0, cssW * dpr, cssH * dpr)
 
@@ -466,19 +431,16 @@ export function render(
   const m = buildViewportMatrix(vp)
   ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f)
 
-  drawGrid(ctx, vp, cssW, cssH, theme)
-  drawOriginMarker(ctx, vp, theme)
+  drawGrid(ctx, vp, cssW, cssH, tc)
+  drawOriginMarker(ctx, vp, tc)
 
-  // Connections drawn before elements (elements render on top)
-  drawConnections(ctx, connections, elements, selectedConnectionId, theme, defaultFontSize)
+  drawConnections(ctx, connections, elements, selectedConnectionId, theme, defaultFontSize, tc)
 
-  // Connection preview
   if (connectingFromId && connectionPreviewPos) {
     const fromEl = elements.find((e) => e.id === connectingFromId)
-    if (fromEl) drawConnectionPreview(ctx, fromEl, connectionPreviewPos, theme)
+    if (fromEl) drawConnectionPreview(ctx, fromEl, connectionPreviewPos, theme, tc)
   }
 
-  // Sort: elements NOT in selectedIds come first, elements IN selectedIds last (render on top)
   const selectedIdSet = new Set(selectedIds)
   const sorted = [...elements].sort((a, b) => {
     const aSelected = selectedIdSet.has(a.id) ? 1 : 0
@@ -491,15 +453,15 @@ export function render(
     const sel = selectedIds.includes(el.id)
     const showHandles = sel && selectedIds.length === 1
     if (el.type === 'icon') {
-      drawIconElement(ctx, el, sel, showHandles, theme, defaultFontSize)
+      drawIconElement(ctx, el, sel, showHandles, theme, defaultFontSize, tc)
     } else if (el.type === 'text') {
-      drawTextElement(ctx, el, sel, showHandles, theme, defaultFontSize)
+      drawTextElement(ctx, el, sel, showHandles, theme, defaultFontSize, tc)
     } else if (el.type === 'box') {
-      drawBoxElement(ctx, el, sel, showHandles, theme, defaultFontSize)
+      drawBoxElement(ctx, el, sel, showHandles, theme, defaultFontSize, tc)
     }
     ctx.restore()
   }
 
-  if (marqueeRect) drawMarquee(ctx, marqueeRect, theme)
-  if (boxDrawPreview) drawMarquee(ctx, boxDrawPreview, theme)
+  if (marqueeRect) drawMarquee(ctx, marqueeRect, theme, tc)
+  if (boxDrawPreview) drawMarquee(ctx, boxDrawPreview, theme, tc)
 }

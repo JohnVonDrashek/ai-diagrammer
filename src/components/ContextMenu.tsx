@@ -214,7 +214,6 @@ export function ContextMenu() {
 
   if (!contextMenuPos) return null
 
-  const isDark = theme === 'dark'
   const { modeLabel, items } = buildItems(useAppStore.getState(), contextMenuPos)
 
   // Keep menu within viewport
@@ -222,14 +221,6 @@ export function ContextMenu() {
   const menuH = items.length * 30 + 40
   const x = Math.min(contextMenuPos.x, window.innerWidth - menuW - 8)
   const y = Math.min(contextMenuPos.y, window.innerHeight - menuH - 8)
-
-  const bg = isDark ? 'rgba(15,15,25,0.96)' : 'rgba(255,255,255,0.97)'
-  const border = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
-  const labelCol = isDark ? 'rgba(226,232,240,0.35)' : 'rgba(15,23,42,0.4)'
-  const textCol = isDark ? 'rgba(226,232,240,0.6)' : 'rgba(15,23,42,0.65)'
-  const kbdBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
-  const kbdCol = isDark ? 'rgba(226,232,240,0.75)' : 'rgba(15,23,42,0.75)'
-  const hoverBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'
 
   return (
     <div
@@ -239,17 +230,17 @@ export function ContextMenu() {
         left: x,
         top: y,
         zIndex: 300,
-        background: bg,
-        border: `1px solid ${border}`,
+        background: 'var(--surface-overlay)',
+        border: '1px solid var(--border)',
         borderRadius: 10,
         padding: '8px 0',
         backdropFilter: 'blur(16px)',
-        boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.12)',
+        boxShadow: 'var(--shadow-lg)',
         minWidth: menuW,
         userSelect: 'none',
       }}
     >
-      <div style={{ fontSize: 10, color: labelCol, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 12px 8px' }}>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 12px 8px' }}>
         {modeLabel}
       </div>
 
@@ -267,7 +258,7 @@ export function ContextMenu() {
               borderRadius: 0,
               transition: 'background 0.08s',
             }}
-            onMouseEnter={(e) => { if (isActionable) (e.currentTarget as HTMLDivElement).style.background = hoverBg }}
+            onMouseEnter={(e) => { if (isActionable) (e.currentTarget as HTMLDivElement).style.background = 'var(--hover-bg-subtle)' }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
           >
             <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
@@ -275,10 +266,10 @@ export function ContextMenu() {
                 <kbd
                   key={ki}
                   style={{
-                    background: item.highlight ? 'rgba(99,102,241,0.18)' : kbdBg,
-                    border: item.highlight ? '1px solid rgba(99,102,241,0.35)' : `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                    background: item.highlight ? 'var(--accent-bg)' : 'var(--kbd-bg)',
+                    border: item.highlight ? '1px solid var(--accent-highlight-border)' : '1px solid var(--border)',
                     borderRadius: 4,
-                    color: item.highlight ? '#a5b4fc' : kbdCol,
+                    color: item.highlight ? 'var(--accent-light)' : 'var(--text-kbd)',
                     fontSize: 11,
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     padding: '1px 6px',
@@ -292,7 +283,7 @@ export function ContextMenu() {
             </div>
             <span style={{
               fontSize: 11,
-              color: item.highlight ? (isDark ? 'rgba(226,232,240,0.8)' : 'rgba(15,23,42,0.8)') : textCol,
+              color: item.highlight ? 'var(--text-secondary)' : 'var(--text-tertiary)',
               textAlign: 'right',
             }}>
               {item.description}

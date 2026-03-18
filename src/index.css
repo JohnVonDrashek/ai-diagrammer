@@ -1,36 +1,9 @@
+@import './themes/index.css';
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-}
-
-:root[data-theme="dark"] {
-  --bg: #0a0a12;
-  --surface: rgba(15,15,25,0.92);
-  --border: rgba(255,255,255,0.1);
-  --text: #e2e8f0;
-  --text-muted: rgba(226,232,240,0.4);
-  --scrollbar: rgba(255,255,255,0.15);
-  --scrollbar-hover: rgba(255,255,255,0.25);
-}
-
-:root[data-theme="light"] {
-  --bg: #f1f5f9;
-  --surface: rgba(255,255,255,0.95);
-  --border: rgba(0,0,0,0.1);
-  --text: #1e293b;
-  --text-muted: rgba(15,23,42,0.4);
-  --scrollbar: rgba(0,0,0,0.15);
-  --scrollbar-hover: rgba(0,0,0,0.25);
-}
-
-/* Default to dark */
-:root {
-  --bg: #0a0a12;
-  --surface: rgba(15,15,25,0.92);
-  --border: rgba(255,255,255,0.1);
-  --text: #e2e8f0;
-  --text-muted: rgba(226,232,240,0.4);
 }
 
 html, body, #root {
