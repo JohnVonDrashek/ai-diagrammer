@@ -70,6 +70,24 @@ function drawIconElement(
   const colorKey = el.color ?? theme
   const img = getIconImage(el.iconName, colorKey)
 
+  // Unified backing card — one shape covering icon + label together
+  if (tc.canvasIconBg !== 'transparent') {
+    const pad = 6
+    const labelH = el.label ? fontSize * 1.2 + 8 : 0
+    const totalH = el.height + pad * 2 + (el.label ? labelH + 4 : 0)
+    let cardW = el.width
+    if (el.label) {
+      ctx.font = `${fontSize}px ${tc.fontUi}`
+      const tw = ctx.measureText(el.label).width
+      cardW = Math.max(el.width, tw + pad * 2)
+    }
+    const cardX = el.x + el.width / 2 - cardW / 2
+    ctx.fillStyle = tc.canvasIconBg
+    ctx.beginPath()
+    ctx.roundRect(cardX - pad, el.y - pad, cardW + pad * 2, totalH, tc.radiusMd + pad)
+    ctx.fill()
+  }
+
   if (img) {
     ctx.drawImage(img, el.x, el.y, el.width, el.height)
   } else {
@@ -78,7 +96,7 @@ function drawIconElement(
     ctx.strokeStyle = tc.canvasPlaceholderStroke
     ctx.lineWidth = 1.5
     ctx.beginPath()
-    ctx.roundRect(el.x, el.y, el.width, el.height, 8)
+    ctx.roundRect(el.x, el.y, el.width, el.height, tc.radiusMd)
     ctx.fill()
     ctx.stroke()
     ctx.fillStyle = tc.canvasPlaceholderDot
@@ -92,10 +110,11 @@ function drawIconElement(
   }
 
   if (el.label) {
-    ctx.fillStyle = el.color ?? tc.canvasLabelText
-    ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
+    ctx.font = `${fontSize}px ${tc.fontUi}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
+    // No separate label backing needed — unified card above covers it
+    ctx.fillStyle = el.color ?? tc.canvasLabelText
     ctx.fillText(el.label, el.x + el.width / 2, el.y + el.height + 4)
   }
 
@@ -104,7 +123,7 @@ function drawIconElement(
     ctx.lineWidth = 2 / 1
     ctx.setLineDash([4, 2])
     ctx.beginPath()
-    ctx.roundRect(el.x - 3, el.y - 3, el.width + 6, el.height + 6, 6)
+    ctx.roundRect(el.x - 3, el.y - 3, el.width + 6, el.height + 6, tc.radiusMd)
     ctx.stroke()
     ctx.setLineDash([])
 
@@ -127,35 +146,95 @@ function drawBoxElement(
   const glowColor = el.color ?? tc.canvasBoxGlow
   const strokeColor = el.color ?? tc.canvasBoxStroke
 
+  const needsSolidFill = tc.canvasTextBg !== 'transparent'
+  const lw = tc.canvasStrokeWidth
+
   ctx.save()
   ctx.beginPath()
-  ctx.roundRect(el.x, el.y, el.width, el.height, 10)
+  ctx.roundRect(el.x, el.y, el.width, el.height, tc.radiusLg)
+
+  // Opaque base — drawn first so overlapping colored boxes never bleed into each other
+  if (tc.canvasBoxBase !== 'transparent') {
+    ctx.fillStyle = tc.canvasBoxBase
+    ctx.fill()
+  }
+
+  // White backing so boxes don't sit on a colored canvas background
+  if (needsSolidFill) {
+    ctx.fillStyle = tc.canvasBoxFill
+    ctx.fill()
+  }
 
   if (boxStyle === 'filled') {
-    ctx.globalAlpha = el.color ? 0.15 : 1
-    ctx.fillStyle = el.color ?? tc.canvasBoxFill
-    ctx.fill()
-    ctx.globalAlpha = 1
-    ctx.shadowColor = glowColor
-    ctx.shadowBlur = el.color ? 14 : 6
-    ctx.strokeStyle = el.color ?? strokeColor
-    ctx.lineWidth = 1.5
+    // Base fill
+    const baseAlpha = el.color ? tc.canvasBoxColorFilledAlpha : tc.canvasBoxFilledBaseAlpha
+    if (baseAlpha > 0) {
+      ctx.globalAlpha = baseAlpha
+      ctx.fillStyle = el.color ?? tc.canvasBoxFill
+      ctx.fill()
+      ctx.globalAlpha = 1
+    }
+    // Gradient overlay
+    if (tc.canvasBoxGradientStops) {
+      const gradAlpha = el.color ? tc.canvasBoxColorGradientAlpha : tc.canvasBoxGradientAlpha
+      if (gradAlpha > 0) {
+        const grad = ctx.createLinearGradient(el.x, el.y, el.x, el.y + el.height)
+        for (const [offset, color] of tc.canvasBoxGradientStops) grad.addColorStop(offset, color)
+        ctx.globalAlpha = gradAlpha
+        ctx.fillStyle = grad
+        ctx.fill()
+        ctx.globalAlpha = 1
+      }
+    }
+  } else {
+    // Solid/dashed: tint only
+    const tintAlpha = el.color ? tc.canvasBoxColorTintAlpha : tc.canvasBoxSolidTintAlpha
+    if (tintAlpha > 0) {
+      ctx.globalAlpha = tintAlpha
+      ctx.fillStyle = el.color ?? tc.canvasBoxFill
+      ctx.fill()
+      ctx.globalAlpha = 1
+    }
+  }
+
+  const strokePath = () => {
+    ctx.beginPath()
+    if (needsSolidFill) {
+      ctx.roundRect(el.x + lw, el.y + lw, el.width - lw * 2, el.height - lw * 2, tc.radiusLg)
+    } else {
+      ctx.roundRect(el.x, el.y, el.width, el.height, tc.radiusLg)
+    }
+  }
+
+  // Separator ring — drawn before shadow is set so it stays clean
+  if (el.color && tc.canvasBoxSeparator !== 'transparent') {
+    const sep = 2
+    ctx.beginPath()
+    ctx.roundRect(el.x - sep, el.y - sep, el.width + sep * 2, el.height + sep * 2, tc.radiusLg + sep)
+    ctx.strokeStyle = tc.canvasBoxSeparator
+    ctx.lineWidth = lw
     ctx.setLineDash([])
     ctx.stroke()
-  } else {
-    ctx.shadowColor = glowColor
-    ctx.shadowBlur = el.color ? 14 : 6
-    ctx.strokeStyle = el.color ?? strokeColor
-    ctx.lineWidth = 1.5
-    ctx.setLineDash(boxStyle === 'dashed' ? [6, 4] : [])
-    ctx.stroke()
   }
+
+  // Glow shadow on the colored stroke only
+  if (tc.canvasGlowBlur > 0) {
+    ctx.shadowColor = glowColor
+    ctx.shadowBlur = el.color ? tc.canvasGlowBlur * 2.3 : tc.canvasGlowBlur
+  }
+
+  // Colored stroke
+  strokePath()
+  ctx.strokeStyle = el.color ?? strokeColor
+  ctx.lineWidth = lw
+  ctx.setLineDash(boxStyle === 'dashed' ? [6, 4] : [])
+  ctx.stroke()
   ctx.restore()
 
   if (el.text) {
     ctx.save()
-    ctx.fillStyle = el.color ?? tc.canvasBoxText
-    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
+    ctx.fillStyle = tc.canvasBoxText
+    ctx.font = `600 ${fontSize}px ${tc.fontUi}`
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
     ctx.fillText(el.text, el.x + 12, el.y + 10)
@@ -167,7 +246,7 @@ function drawBoxElement(
     ctx.lineWidth = 2
     ctx.setLineDash([4, 2])
     ctx.beginPath()
-    ctx.roundRect(el.x - 3, el.y - 3, el.width + 6, el.height + 6, 13)
+    ctx.roundRect(el.x - 3, el.y - 3, el.width + 6, el.height + 6, tc.radiusLg)
     ctx.stroke()
     ctx.setLineDash([])
   }
@@ -184,10 +263,17 @@ function drawTextElement(
   fontSize: number,
   tc: ThemeColors
 ) {
-  ctx.fillStyle = el.color ?? tc.canvasTextStrong
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
+  ctx.font = `${fontSize}px ${tc.fontUi}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
+  // Draw backing for readability on high-contrast backgrounds
+  if (tc.canvasTextBg !== 'transparent') {
+    const tw = ctx.measureText(el.text).width
+    const th = fontSize * 1.2
+    ctx.fillStyle = tc.canvasTextBg
+    ctx.fillRect(el.x - 3, el.y - 2, tw + 6, th + 4)
+  }
+  ctx.fillStyle = el.color ?? tc.canvasTextStrong
   ctx.fillText(el.text, el.x, el.y)
 
   if (selected) {
@@ -263,7 +349,8 @@ function drawArrow(
   ctx: CanvasRenderingContext2D,
   x1: number, y1: number, x2: number, y2: number,
   color: string,
-  connStyle: import('../store/types').ConnectionStyle = 'solid'
+  connStyle: import('../store/types').ConnectionStyle = 'solid',
+  lineWidth = 1.5
 ) {
   const headLen = 10
   const angle = Math.atan2(y2 - y1, x2 - x1)
@@ -271,7 +358,7 @@ function drawArrow(
   ctx.save()
   ctx.strokeStyle = color
   ctx.fillStyle = color
-  ctx.lineWidth = 1.5
+  ctx.lineWidth = lineWidth
 
   if (connStyle === 'dashed') {
     ctx.setLineDash([8, 5])
@@ -323,8 +410,13 @@ function drawConnections(
     const selected = conn.id === selectedConnectionId
     const color = conn.color ?? (selected ? tc.accent : tc.canvasConnection)
 
+    // Separator pass — solid white outline beneath colored arrows, always solid regardless of style
+    if (conn.color && tc.canvasConnectionSeparator !== 'transparent') {
+      drawArrow(ctx, start.x, start.y, end.x, end.y, tc.canvasConnectionSeparator, 'solid', 6)
+    }
+
     ctx.save()
-    if (selected) {
+    if (selected && tc.canvasGlowBlur > 0) {
       ctx.shadowColor = conn.color ?? tc.accent
       ctx.shadowBlur = 10
     }
@@ -335,15 +427,24 @@ function drawConnections(
       const mx = (start.x + end.x) / 2
       const my = (start.y + end.y) / 2
       ctx.save()
-      ctx.fillStyle = conn.color ?? tc.canvasLabelTextSecondary
-      ctx.font = `${Math.max(10, fontSize - 2)}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
+      ctx.font = `${Math.max(10, fontSize - 2)}px ${tc.fontUi}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       const tw = ctx.measureText(conn.label).width
-      ctx.fillStyle = tc.canvasLabelBg
-      ctx.beginPath()
-      ctx.roundRect(mx - tw / 2 - 5, my - 10, tw + 10, 18, 4)
-      ctx.fill()
+      // Background behind label for readability
+      const labelBg = (tc.canvasLabelBg && tc.canvasLabelBg !== 'transparent')
+        ? tc.canvasLabelBg
+        : (tc.canvasTextBg !== 'transparent' ? tc.canvasTextBg : null)
+      if (labelBg) {
+        const labelFontSize = Math.max(10, fontSize - 2)
+        const th = labelFontSize * 1.2
+        const px = 8
+        const py = 4
+        ctx.fillStyle = labelBg
+        ctx.beginPath()
+        ctx.roundRect(mx - tw / 2 - px, my - th / 2 - py, tw + px * 2, th + py * 2, tc.radiusSm)
+        ctx.fill()
+      }
       ctx.fillStyle = conn.color ?? tc.canvasLabelText
       ctx.fillText(conn.label, mx, my)
       ctx.restore()
@@ -434,13 +535,7 @@ export function render(
   drawGrid(ctx, vp, cssW, cssH, tc)
   drawOriginMarker(ctx, vp, tc)
 
-  drawConnections(ctx, connections, elements, selectedConnectionId, theme, defaultFontSize, tc)
-
-  if (connectingFromId && connectionPreviewPos) {
-    const fromEl = elements.find((e) => e.id === connectingFromId)
-    if (fromEl) drawConnectionPreview(ctx, fromEl, connectionPreviewPos, theme, tc)
-  }
-
+  // Draw elements first, then connections on top
   const selectedIdSet = new Set(selectedIds)
   const sorted = [...elements].sort((a, b) => {
     const aSelected = selectedIdSet.has(a.id) ? 1 : 0
@@ -460,6 +555,13 @@ export function render(
       drawBoxElement(ctx, el, sel, showHandles, theme, defaultFontSize, tc)
     }
     ctx.restore()
+  }
+
+  drawConnections(ctx, connections, elements, selectedConnectionId, theme, defaultFontSize, tc)
+
+  if (connectingFromId && connectionPreviewPos) {
+    const fromEl = elements.find((e) => e.id === connectingFromId)
+    if (fromEl) drawConnectionPreview(ctx, fromEl, connectionPreviewPos, theme, tc)
   }
 
   if (marqueeRect) drawMarquee(ctx, marqueeRect, theme, tc)

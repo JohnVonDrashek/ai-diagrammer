@@ -37,6 +37,7 @@
   --accent-border-strong: rgba(136,192,208,0.6);
   --accent-bg: rgba(136,192,208,0.18);
   --accent-bg-subtle: rgba(136,192,208,0.12);
+  --accent-text: #88c0d0;
   --accent-highlight-border: rgba(136,192,208,0.35);
 
   /* Canvas */
@@ -56,6 +57,20 @@
   --canvas-placeholder-dot: rgba(136,192,208,0.5);
   --canvas-marquee-fill: rgba(136,192,208,0.08);
   --canvas-origin: rgba(136,192,208,0.5);
+  --canvas-glow-blur: 6;
+  --canvas-text-bg: transparent;
+  --canvas-stroke-width: 1.5;
+  --canvas-box-gradient: none;
+  --canvas-box-base: transparent;
+  --canvas-box-separator: transparent;
+  --canvas-icon-bg: transparent;
+  --canvas-connection-separator: transparent;
+  --canvas-box-solid-tint-alpha: 0;
+  --canvas-box-filled-base-alpha: 1;
+  --canvas-box-gradient-alpha: 1;
+  --canvas-box-color-filled-alpha: 0.15;
+  --canvas-box-color-tint-alpha: 0;
+  --canvas-box-color-gradient-alpha: 0;
 
   /* Shadows */
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.45);
@@ -69,4 +84,16 @@
   /* Danger — Nord aurora red */
   --danger: #bf616a;
   --danger-bg: rgba(191,97,106,0.12);
+
+  /* Structure */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --backdrop-blur: blur(16px);
+  --font-smoothing: antialiased;
+  --shadow-raised: none;
+  --shadow-inset: none;
+  --scrollbar-width: 4px;
+  --scrollbar-radius: 2px;
 }

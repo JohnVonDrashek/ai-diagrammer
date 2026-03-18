@@ -37,7 +37,7 @@ export function DiagramTabs() {
         gap: 2,
         background: 'var(--surface-dim)',
         borderTop: '1px solid var(--border-subtle)',
-        backdropFilter: 'blur(16px)',
+        backdropFilter: 'var(--backdrop-blur)',
         zIndex: 40,
         userSelect: 'none',
       }}
@@ -57,7 +57,7 @@ export function DiagramTabs() {
               gap: 4,
               height: 26,
               padding: '0 8px 0 10px',
-              borderRadius: '6px 6px 0 0',
+              borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
               cursor: isEditing ? 'default' : 'pointer',
               background: isActive
                 ? 'var(--accent-bg)'
@@ -96,7 +96,7 @@ export function DiagramTabs() {
                 }}
               />
             ) : (
-              <span style={{ fontSize: 12, color: isActive ? 'var(--text)' : 'var(--text-tab-inactive)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 12, color: isActive ? 'var(--accent-text)' : 'var(--text-tab-inactive)', whiteSpace: 'nowrap' }}>
                 {diagram.name}
               </span>
             )}
@@ -131,7 +131,7 @@ export function DiagramTabs() {
           color: 'var(--text-tab-inactive)', fontSize: 18, lineHeight: 1,
           padding: '0 8px', height: 26,
           display: 'flex', alignItems: 'center',
-          borderRadius: 4,
+          borderRadius: 'var(--radius-sm)',
           transition: 'color 0.12s',
         }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)' }}

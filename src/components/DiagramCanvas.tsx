@@ -82,8 +82,8 @@ function TextInputOverlay() {
         style={{
           background: 'var(--surface-overlay)',
           border: '1px solid var(--accent-border-strong)',
-          borderRadius: 6, color: 'var(--text)',
-          fontSize: 16, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          borderRadius: 'var(--radius-md)', color: 'var(--text)',
+          fontSize: 16, fontFamily: 'var(--font-ui)',
           padding: '4px 10px', outline: 'none', minWidth: 180,
           boxShadow: 'var(--shadow-input)',
         }}

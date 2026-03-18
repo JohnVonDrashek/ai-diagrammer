@@ -1,0 +1,101 @@
+:root[data-theme="win95"] {
+  /* Core */
+  --bg: #008080;
+  --text: #000000;
+
+  /* Surfaces — fully opaque, no transparency */
+  --surface: #c0c0c0;
+  --surface-overlay: #c0c0c0;
+  --surface-dim: #c0c0c0;
+  --surface-glass: #c0c0c0;
+
+  /* Borders */
+  --border: #808080;
+  --border-subtle: #a0a0a0;
+  --border-muted: #808080;
+  --border-strong: #404040;
+
+  /* Text levels — high contrast, no translucency */
+  --text-strong: #000000;
+  --text-secondary: #000000;
+  --text-tertiary: #404040;
+  --text-muted: #808080;
+  --text-kbd: #000000;
+  --text-faint: #808080;
+  --text-icon: #404040;
+  --text-tab-inactive: #808080;
+
+  /* Interactive — solid colors, no translucency */
+  --hover-bg: #b0b0b0;
+  --hover-bg-subtle: #b8b8b8;
+  --kbd-bg: #dfdfdf;
+
+  /* Accent — classic Windows navy blue */
+  --accent: #000080;
+  --accent-light: #ffffff;
+  --accent-border: #000080;
+  --accent-border-strong: #000080;
+  --accent-bg: #000080;
+  --accent-bg-subtle: #c0c0d8;
+  --accent-text: #ffffff;
+  --accent-highlight-border: #000080;
+
+  /* Canvas */
+  --canvas-grid: rgba(0,0,0,0.08);
+  --canvas-grid-accent: rgba(0,0,0,0.2);
+  --canvas-box-stroke: #000000;
+  --canvas-box-fill: #ffffff;
+  --canvas-box-glow: transparent;
+  --canvas-box-text: #000000;
+  --canvas-connection: #000000;
+  --canvas-connection-preview: #000080;
+  --canvas-label-bg: transparent;
+  --canvas-label-text: #000000;
+  --canvas-label-text-secondary: #000000;
+  --canvas-placeholder-fill: #dfdfdf;
+  --canvas-placeholder-stroke: #808080;
+  --canvas-placeholder-dot: #404040;
+  --canvas-marquee-fill: rgba(0,0,128,0.15);
+  --canvas-origin: #000080;
+  --canvas-glow-blur: 0;
+  --canvas-text-bg: #ffffff;
+  --canvas-stroke-width: 3;
+  --canvas-box-gradient: none;
+  --canvas-box-base: transparent;
+  --canvas-box-separator: transparent;
+  --canvas-icon-bg: transparent;
+  --canvas-connection-separator: transparent;
+  --canvas-box-solid-tint-alpha: 0;
+  --canvas-box-filled-base-alpha: 1;
+  --canvas-box-gradient-alpha: 1;
+  --canvas-box-color-filled-alpha: 0.15;
+  --canvas-box-color-tint-alpha: 0;
+  --canvas-box-color-gradient-alpha: 0;
+
+  /* 3D beveled shadows — the Win95 signature look */
+  --shadow-raised: inset -1px -1px #0a0a0a, inset 1px 1px #ffffff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  --shadow-inset: inset 1px 1px #0a0a0a, inset -1px -1px #ffffff, inset 2px 2px #808080, inset -2px -2px #dfdfdf;
+
+  /* Shadow vars map to the 3D bevels */
+  --shadow-lg: var(--shadow-raised);
+  --shadow-md: var(--shadow-raised);
+  --shadow-input: var(--shadow-inset);
+
+  /* Scrollbar — chunky Win95 style */
+  --scrollbar: #c0c0c0;
+  --scrollbar-hover: #a0a0a0;
+  --scrollbar-width: 16px;
+  --scrollbar-radius: 0px;
+
+  /* Danger */
+  --danger: #ff0000;
+  --danger-bg: #c0c0c0;
+
+  /* Structure — square corners, no blur, bitmap font */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --font-ui: 'MS Sans Serif', 'Microsoft Sans Serif', Tahoma, Geneva, sans-serif;
+  --backdrop-blur: none;
+  --font-smoothing: none;
+}

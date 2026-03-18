@@ -1,0 +1,99 @@
+:root[data-theme="aqua"] {
+  /* Core — Aurora wallpaper deep blue */
+  --bg: #3568a7;
+  --text: #222222;
+
+  /* Surfaces — glossy gradients like Aqua window chrome */
+  --surface: linear-gradient(180deg, #f8f8f8 0%, #d0d0d0 100%);
+  --surface-overlay: linear-gradient(180deg, #fbfbfb 0%, #e0e0e0 100%);
+  --surface-dim: linear-gradient(180deg, #e2e2e2 0%, #c8c8c8 100%);
+  --surface-glass: linear-gradient(180deg, #ededed 0%, #d6d6d6 100%);
+
+  /* Borders — the bevel edges of Aqua chrome */
+  --border: #9a9a9a;
+  --border-subtle: #b8b8b8;
+  --border-muted: #aaaaaa;
+  --border-strong: #888888;
+
+  /* Text levels */
+  --text-strong: #000000;
+  --text-secondary: rgba(0,0,0,0.78);
+  --text-tertiary: rgba(0,0,0,0.52);
+  --text-muted: rgba(0,0,0,0.38);
+  --text-kbd: rgba(0,0,0,0.7);
+  --text-faint: rgba(0,0,0,0.28);
+  --text-icon: rgba(0,0,0,0.45);
+  --text-tab-inactive: rgba(0,0,0,0.42);
+
+  /* Interactive */
+  --hover-bg: rgba(27,116,232,0.1);
+  --hover-bg-subtle: rgba(27,116,232,0.06);
+  --kbd-bg: linear-gradient(180deg, #ffffff 0%, #e8e8e8 100%);
+
+  /* Accent — Aqua's gel blue button with glossy highlight */
+  --accent: #2b85e4;
+  --accent-light: #5eaaef;
+  --accent-border: #1a5faa;
+  --accent-border-strong: #15508e;
+  --accent-bg: linear-gradient(180deg, #6ab4f7 0%, #1a6ed8 50%, #1560c0 100%);
+  --accent-bg-subtle: rgba(27,116,232,0.14);
+  --accent-text: #ffffff;
+  --accent-highlight-border: #1a5faa;
+
+  /* Canvas */
+  --canvas-grid: rgba(255,255,255,0.1);
+  --canvas-grid-accent: rgba(255,255,255,0.22);
+  --canvas-box-stroke: rgba(255,255,255,0.85);
+  --canvas-box-fill: #eef2f8;
+  --canvas-box-glow: rgba(27,116,232,0.4);
+  --canvas-box-text: rgba(255,255,255,0.9);
+  --canvas-connection: rgba(255,255,255,0.65);
+  --canvas-connection-preview: rgba(27,116,232,0.8);
+  --canvas-label-bg: rgba(255,255,255,0.85);
+  --canvas-label-text: #000000;
+  --canvas-label-text-secondary: rgba(0,0,0,0.8);
+  --canvas-placeholder-fill: rgba(27,116,232,0.15);
+  --canvas-placeholder-stroke: rgba(27,116,232,0.4);
+  --canvas-placeholder-dot: rgba(27,116,232,0.55);
+  --canvas-marquee-fill: rgba(27,116,232,0.1);
+  --canvas-origin: rgba(255,255,255,0.4);
+  --canvas-glow-blur: 0;
+  --canvas-text-bg: transparent;
+  --canvas-stroke-width: 2;
+  --canvas-box-gradient: 0 #ffffff | 0.45 #dce8f6 | 0.5 #ccdff4 | 1 #b8d0ee;
+  --canvas-box-base: transparent;
+  --canvas-box-separator: #ffffff;
+  --canvas-icon-bg: rgba(255,255,255,0.9);
+  --canvas-connection-separator: #ffffff;
+  --canvas-box-solid-tint-alpha: 0.18;
+  --canvas-box-filled-base-alpha: 1;
+  --canvas-box-gradient-alpha: 1;
+  --canvas-box-color-filled-alpha: 0.55;
+  --canvas-box-color-tint-alpha: 0.35;
+  --canvas-box-color-gradient-alpha: 0.5;
+
+  /* Shadows — big glossy drop shadows + inset shine for that gel look */
+  --shadow-lg: inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 0 rgba(255,255,255,0.3), 0 6px 20px rgba(0,40,100,0.3);
+  --shadow-md: inset 0 1px 0 rgba(255,255,255,0.5), 0 4px 14px rgba(0,40,100,0.2);
+  --shadow-input: inset 0 2px 4px rgba(0,0,0,0.12), 0 0 0 1px #a0a0a0;
+  --shadow-raised: inset 0 1px 0 rgba(255,255,255,0.6);
+  --shadow-inset: inset 0 2px 4px rgba(0,0,0,0.12);
+
+  /* Scrollbar — fat glossy blue Aqua pill */
+  --scrollbar: linear-gradient(90deg, #7ec0f8 0%, #3d8ee0 50%, #7ec0f8 100%);
+  --scrollbar-hover: linear-gradient(90deg, #5eaaef 0%, #2070c8 50%, #5eaaef 100%);
+
+  /* Danger — Aqua red gel */
+  --danger: #e03030;
+  --danger-bg: rgba(224,48,48,0.12);
+
+  /* Structure — bubbly round corners, Lucida Grande */
+  --radius-sm: 5px;
+  --radius-md: 10px;
+  --radius-lg: 18px;
+  --font-ui: 'Lucida Grande', 'Lucida Sans Unicode', 'Helvetica Neue', Helvetica, sans-serif;
+  --backdrop-blur: blur(4px);
+  --font-smoothing: antialiased;
+  --scrollbar-width: 14px;
+  --scrollbar-radius: 7px;
+}

@@ -62,10 +62,10 @@ export function RenameInput() {
         style={{
           background: 'var(--surface-overlay)',
           border: '1px solid var(--accent-border)',
-          borderRadius: 6,
+          borderRadius: 'var(--radius-md)',
           color: 'var(--text)',
           fontSize: 13,
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          fontFamily: 'var(--font-ui)',
           padding: '4px 10px',
           outline: 'none',
           minWidth: 140,

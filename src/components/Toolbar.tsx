@@ -71,9 +71,9 @@ export function Toolbar() {
         gap: 4,
         background: 'var(--surface)',
         border: '1px solid var(--border)',
-        borderRadius: 12,
+        borderRadius: 'var(--radius-lg)',
         padding: '6px 10px',
-        backdropFilter: 'blur(16px)',
+        backdropFilter: 'var(--backdrop-blur)',
         boxShadow: 'var(--shadow-lg)',
         color: 'var(--text)',
       }}
@@ -105,7 +105,7 @@ export function Toolbar() {
         <button
           onClick={() => changeFontSize(-2)}
           title="Decrease font size"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4 }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 'var(--radius-sm)' }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--hover-bg)' }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none' }}
         >−</button>
@@ -119,7 +119,7 @@ export function Toolbar() {
           style={{
             width: 34, textAlign: 'center', background: 'transparent',
             border: '1px solid var(--border)',
-            borderRadius: 4, color: 'var(--text-secondary)',
+            borderRadius: 'var(--radius-sm)', color: 'var(--text-secondary)',
             fontSize: 11, padding: '2px 0', outline: 'none',
             MozAppearance: 'textfield',
           } as React.CSSProperties}
@@ -127,7 +127,7 @@ export function Toolbar() {
         <button
           onClick={() => changeFontSize(2)}
           title="Increase font size"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4 }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 'var(--radius-sm)' }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--hover-bg)' }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none' }}
         >+</button>
@@ -176,7 +176,7 @@ export function Toolbar() {
         <button
           onClick={resetView}
           title="Reset rotation to origin (O)"
-          style={{ background: 'var(--accent-bg-subtle)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 6, color: 'var(--accent-light)', padding: '3px 8px', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+          style={{ background: 'var(--accent-bg-subtle)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-md)', color: 'var(--accent-light)', padding: '3px 8px', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M1 4v6h6M23 20v-6h-6"/>
@@ -234,7 +234,7 @@ function Divider() {
 
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd style={{ background: 'var(--kbd-bg)', padding: '1px 5px', borderRadius: 3, fontSize: 10, fontFamily: 'inherit' }}>
+    <kbd style={{ background: 'var(--kbd-bg)', padding: '1px 5px', borderRadius: 'var(--radius-sm)', fontSize: 10, fontFamily: 'inherit' }}>
       {children}
     </kbd>
   )
@@ -263,19 +263,19 @@ function ToolBtn({
       title={title}
       style={{
         display: 'flex', alignItems: 'center', gap: 4,
-        background: active ? 'rgba(99,102,241,0.2)' : 'transparent',
-        border: active ? '1px solid rgba(99,102,241,0.4)' : '1px solid transparent',
-        borderRadius: 6,
+        background: active ? 'var(--accent-bg-subtle)' : 'transparent',
+        border: active ? '1px solid var(--accent-border)' : '1px solid transparent',
+        borderRadius: 'var(--radius-md)',
         color: danger ? 'var(--danger)' : active ? 'var(--accent-light)' : 'var(--text-kbd)',
         padding: '3px 8px', cursor: 'pointer', fontSize: 12, transition: 'all 0.12s',
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget
-        el.style.background = danger ? 'var(--danger-bg)' : active ? 'rgba(99,102,241,0.25)' : 'var(--hover-bg)'
+        el.style.background = danger ? 'var(--danger-bg)' : active ? 'var(--accent-bg)' : 'var(--hover-bg)'
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget
-        el.style.background = active ? 'rgba(99,102,241,0.2)' : 'transparent'
+        el.style.background = active ? 'var(--accent-bg-subtle)' : 'transparent'
       }}
     >
       {children}

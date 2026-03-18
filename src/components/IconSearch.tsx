@@ -35,14 +35,14 @@ function PreviewIcon({ iconName, label, onSelect }: PreviewIconProps) {
         padding: '10px 8px',
         background: 'var(--hover-bg-subtle)',
         border: '1px solid var(--border-subtle)',
-        borderRadius: 8,
+        borderRadius: 'var(--radius-md)',
         cursor: 'pointer',
         color: 'var(--text)',
         transition: 'all 0.15s',
         minWidth: 72,
       }}
       onMouseEnter={(e) => {
-        ;(e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.2)'
+        ;(e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-bg-subtle)'
         ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent)'
       }}
       onMouseLeave={(e) => {
@@ -63,8 +63,8 @@ function PreviewIcon({ iconName, label, onSelect }: PreviewIconProps) {
           style={{
             width: 40,
             height: 40,
-            background: 'rgba(99,102,241,0.2)',
-            borderRadius: 6,
+            background: 'var(--accent-bg-subtle)',
+            borderRadius: 'var(--radius-md)',
             animation: 'pulse 1.5s infinite',
           }}
         />
@@ -169,9 +169,9 @@ export function IconSearch() {
           maxWidth: 'calc(100vw - 32px)',
           background: 'var(--surface-overlay)',
           border: '1px solid var(--border-muted)',
-          borderRadius: 16,
+          borderRadius: 'var(--radius-lg)',
           boxShadow: '0 24px 80px rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(20px)',
+          backdropFilter: 'var(--backdrop-blur)',
           overflow: 'hidden',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -201,7 +201,7 @@ export function IconSearch() {
                 outline: 'none',
                 color: 'var(--text)',
                 fontSize: 16,
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                fontFamily: 'var(--font-ui)',
               }}
             />
             {isAiLoading && (
@@ -266,8 +266,8 @@ export function IconSearch() {
             color: 'var(--text-muted)',
           }}
         >
-          <span><kbd style={{ background: 'var(--kbd-bg)', padding: '1px 5px', borderRadius: 3 }}>Enter</kbd> place first</span>
-          <span><kbd style={{ background: 'var(--kbd-bg)', padding: '1px 5px', borderRadius: 3 }}>Esc</kbd> close</span>
+          <span><kbd style={{ background: 'var(--kbd-bg)', padding: '1px 5px', borderRadius: 'var(--radius-sm)' }}>Enter</kbd> place first</span>
+          <span><kbd style={{ background: 'var(--kbd-bg)', padding: '1px 5px', borderRadius: 'var(--radius-sm)' }}>Esc</kbd> close</span>
           <span>Click icon to place</span>
         </div>
       </div>

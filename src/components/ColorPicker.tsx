@@ -112,7 +112,7 @@ export function ColorPicker() {
           borderRadius: '50%',
           background: 'var(--surface-glass)',
           border: '1px solid var(--border)',
-          backdropFilter: 'blur(14px)',
+          backdropFilter: 'var(--backdrop-blur)',
           boxShadow: 'var(--shadow-lg)',
           pointerEvents: 'all',
         }} />
