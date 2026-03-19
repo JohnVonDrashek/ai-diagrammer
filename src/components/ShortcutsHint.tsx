@@ -3,11 +3,10 @@ import { useAppStore, selectResolvedTheme } from '../store/useAppStore'
 interface Shortcut {
   keys: string[]
   description: string
-  highlight?: boolean
 }
 
 export function ShortcutsHint() {
-  const { toolMode, selectedIds, selectedConnectionId, connectingFromId, isIconSearchOpen, textInputPos } = useAppStore()
+  const { toolMode, selectedIds, selectedConnectionId, connectingFromId, isIconSearchOpen, textInputPos, elements, hierarchyMove } = useAppStore()
   const theme = useAppStore(selectResolvedTheme)
 
   // Don't show when search or text input is open
@@ -19,7 +18,7 @@ export function ShortcutsHint() {
   if (selectedConnectionId) {
     modeLabel = 'Connection selected'
     shortcuts = [
-      { keys: ['D'], description: 'Reverse direction', highlight: true },
+      { keys: ['D'], description: 'Reverse direction' },
       { keys: ['S'], description: 'Cycle style (solid/dashed/animated)' },
       { keys: ['C'], description: 'Change color' },
       { keys: ['T'], description: 'Edit label' },
@@ -29,26 +28,36 @@ export function ShortcutsHint() {
   } else if (connectingFromId || toolMode === 'connect') {
     modeLabel = 'Connect mode'
     shortcuts = [
-      { keys: ['click'], description: 'Connect to element', highlight: true },
+      { keys: ['click'], description: 'Connect to element' },
+      { keys: ['Q'], description: 'Create icon + connect' },
+      { keys: ['W'], description: 'Create text + connect' },
+      { keys: ['B'], description: 'Create box + connect' },
+      { keys: ['S'], description: 'Cycle line style' },
       { keys: ['Esc'], description: 'Cancel' },
     ]
   } else if (toolMode === 'text') {
     modeLabel = 'Text mode'
     shortcuts = [
-      { keys: ['click'], description: 'Place text here', highlight: true },
+      { keys: ['click'], description: 'Place text here' },
       { keys: ['Esc'], description: 'Cancel' },
     ]
   } else if (selectedIds.length > 0) {
+    const primaryEl = elements.find((e) => e.id === selectedIds[0])
+    const isIcon = primaryEl?.type === 'icon'
+    const isBox = primaryEl?.type === 'box'
     modeLabel = selectedIds.length > 1 ? `${selectedIds.length} selected` : 'Selected'
     shortcuts = [
       { keys: ['drag'], description: 'Move' },
       { keys: ['⌘C'], description: 'Copy' },
       { keys: ['⌘V'], description: 'Paste' },
-      { keys: ['⌘D'], description: 'Duplicate', highlight: true },
-      { keys: ['R'], description: 'Rename', highlight: true },
-      { keys: ['S'], description: 'Swap icon image' },
+      { keys: ['⌘D'], description: 'Duplicate' },
+      { keys: ['R'], description: 'Rename' },
+      ...(isIcon ? [{ keys: ['S'], description: 'Swap icon image' }] : []),
+      ...(isBox ? [{ keys: ['S'], description: 'Cycle box style' }] : []),
       { keys: ['C'], description: 'Change color' },
       { keys: ['E'], description: 'Connect edge' },
+      { keys: ['B'], description: 'Box around selection' },
+      { keys: ['H'], description: hierarchyMove ? 'Hierarchy move: on' : 'Hierarchy move: off' },
       { keys: ['⌫'], description: 'Delete' },
       { keys: ['Esc'], description: 'Deselect' },
     ]
@@ -58,10 +67,11 @@ export function ShortcutsHint() {
       { keys: ['Q'], description: 'Add icon' },
       { keys: ['W'], description: 'Add text' },
       { keys: ['B'], description: 'Add box' },
+      { keys: ['H'], description: hierarchyMove ? 'Hierarchy move: on' : 'Hierarchy move: off' },
       { keys: ['scroll'], description: 'Pan' },
       { keys: ['pinch'], description: 'Zoom' },
       { keys: ['⌥ + scroll'], description: 'Rotate' },
-      { keys: ['O'], description: 'Reset rotation to origin' },
+      { keys: ['O'], description: 'Reset rotation' },
     ]
   }
 
@@ -94,10 +104,10 @@ export function ShortcutsHint() {
                 <kbd
                   key={ki}
                   style={{
-                    background: s.highlight ? 'var(--accent-bg)' : 'var(--kbd-bg)',
-                    border: s.highlight ? '1px solid var(--accent-highlight-border)' : '1px solid var(--border)',
+                    background: 'var(--kbd-bg)',
+                    border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)',
-                    color: s.highlight ? 'var(--accent-light)' : 'var(--text-kbd)',
+                    color: 'var(--text-kbd)',
                     fontSize: 11,
                     fontFamily: 'var(--font-ui)',
                     padding: '1px 6px',
@@ -109,7 +119,7 @@ export function ShortcutsHint() {
                 </kbd>
               ))}
             </div>
-            <span style={{ fontSize: 11, color: s.highlight ? 'var(--text-secondary)' : 'var(--text-tertiary)', textAlign: 'right' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'right' }}>
               {s.description}
             </span>
           </div>

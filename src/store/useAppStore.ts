@@ -127,7 +127,8 @@ interface AppState {
   connectionPreviewPos: { x: number; y: number } | null
   pendingConnectionFrom: ElementId | null
   pendingConnectionStyle: ConnectionStyle
-  connectCreateMenuPos: { screenX: number; screenY: number; worldX: number; worldY: number; fromId: ElementId } | null
+  connectCreateMenuPos: { screenX: number; screenY: number; worldX: number; worldY: number; fromId?: ElementId } | null
+  elementActionMenuPos: { screenX: number; screenY: number; elementId: ElementId } | null
   history: HistoryEntry[]
   contextMenuPos: { x: number; y: number } | null
 
@@ -136,6 +137,7 @@ interface AppState {
   switchDiagram: (id: string) => void
   renameDiagram: (id: string, name: string) => void
   deleteDiagram: (id: string) => void
+  reorderDiagrams: (fromIndex: number, toIndex: number) => void
   importDiagram: (diagram: Diagram) => void
   loadWorkspace: (diagrams: Diagram[], activeDiagramId: string) => void
   // Canvas
@@ -175,7 +177,10 @@ interface AppState {
   closeRename: () => void
   setPendingConnectionFrom: (id: ElementId | null) => void
   openConnectCreateMenu: (screenX: number, screenY: number, worldX: number, worldY: number) => void
+  openQuickCreateMenu: (screenX: number, screenY: number, worldX: number, worldY: number) => void
   closeConnectCreateMenu: () => void
+  openElementActionMenu: (screenX: number, screenY: number, elementId: ElementId) => void
+  closeElementActionMenu: () => void
   // Connections
   addConnection: (c: ConnectionElement) => void
   deleteConnection: (id: ElementId) => void
@@ -228,6 +233,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   pendingConnectionFrom: null,
   pendingConnectionStyle: 'solid' as ConnectionStyle,
   connectCreateMenuPos: null,
+  elementActionMenuPos: null,
   history: [],
   contextMenuPos: null,
 
@@ -270,6 +276,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       const next$ = { diagrams: remaining, activeDiagramId: fallback.id, elements: fallback.elements, connections: fallback.connections, viewport: fallback.viewport, ...EPHEMERAL_RESET }
       setTimeout(() => flushSave({ ...s, ...next$ }), 0)
       return next$
+    }),
+  reorderDiagrams: (fromIndex, toIndex) =>
+    set((s) => {
+      const arr = [...s.diagrams]
+      const [moved] = arr.splice(fromIndex, 1)
+      arr.splice(toIndex, 0, moved)
+      return { diagrams: arr }
     }),
   loadWorkspace: (newDiagrams, newActiveId) =>
     set((s) => {
@@ -474,7 +487,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       connectionPreviewPos: null,
       toolMode: 'select',
     })),
+  openQuickCreateMenu: (screenX, screenY, worldX, worldY) =>
+    set({ connectCreateMenuPos: { screenX, screenY, worldX, worldY } }),
   closeConnectCreateMenu: () => set({ connectCreateMenuPos: null }),
+  openElementActionMenu: (screenX, screenY, elementId) =>
+    set({ elementActionMenuPos: { screenX, screenY, elementId } }),
+  closeElementActionMenu: () => set({ elementActionMenuPos: null }),
 }))
 
 // ── Auto-save (module-level, debounced) ───────────────────────────────────────

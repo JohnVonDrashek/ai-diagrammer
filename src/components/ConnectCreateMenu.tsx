@@ -35,6 +35,7 @@ export function ConnectCreateMenu() {
   if (!connectCreateMenuPos) return null
 
   const { screenX, screenY, worldX, worldY, fromId } = connectCreateMenuPos
+  const isConnecting = !!fromId
   const containerSize = (RADIUS + BTN / 2 + 8) * 2
 
   const items: Array<{ label: string; angle: number; action: () => void; content: React.ReactNode }> = [
@@ -42,7 +43,7 @@ export function ConnectCreateMenu() {
       label: 'Add icon',
       angle: 210,
       action: () => {
-        setPendingConnectionFrom(fromId)
+        if (fromId) setPendingConnectionFrom(fromId)
         closeConnectCreateMenu()
         openIconSearch({ x: worldX, y: worldY })
       },
@@ -56,7 +57,7 @@ export function ConnectCreateMenu() {
       label: 'Add text',
       angle: 270,
       action: () => {
-        setPendingConnectionFrom(fromId)
+        if (fromId) setPendingConnectionFrom(fromId)
         closeConnectCreateMenu()
         openTextInput(screenX, screenY)
       },
@@ -70,7 +71,7 @@ export function ConnectCreateMenu() {
       label: 'Add box',
       angle: 330,
       action: () => {
-        setPendingConnectionFrom(fromId)
+        if (fromId) setPendingConnectionFrom(fromId)
         closeConnectCreateMenu()
         const el: BoxElement = {
           id: genId(), type: 'box',
@@ -127,7 +128,7 @@ export function ConnectCreateMenu() {
         pointerEvents: 'none',
         lineHeight: 1.2,
       }}>
-        create<br/>&amp; connect
+        {isConnecting ? <>create<br/>&amp; connect</> : 'create'}
       </div>
 
       {/* Items */}

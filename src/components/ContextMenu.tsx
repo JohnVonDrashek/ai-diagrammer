@@ -10,7 +10,6 @@ function genId() {
 interface MenuItem {
   keys: string[]
   description: string
-  highlight?: boolean
   action?: () => void
 }
 
@@ -25,8 +24,7 @@ function buildItems(store: ReturnType<typeof useAppStore.getState>, pos: { x: nu
       modeLabel: 'Connection selected',
       items: [
         {
-          keys: ['D'], description: 'Reverse direction', highlight: true,
-          action: () => { store.reverseConnection(selectedConnectionId); close() },
+          keys: ['D'], description: 'Reverse direction',          action: () => { store.reverseConnection(selectedConnectionId); close() },
         },
         {
           keys: ['S'], description: 'Cycle style',
@@ -104,12 +102,10 @@ function buildItems(store: ReturnType<typeof useAppStore.getState>, pos: { x: nu
           },
         },
         {
-          keys: ['⌘D'], description: 'Duplicate', highlight: true,
-          action: () => { store.copySelected(); store.paste(); close() },
+          keys: ['⌘D'], description: 'Duplicate',          action: () => { store.copySelected(); store.paste(); close() },
         },
         ...(isSingle ? [{
-          keys: ['R'], description: 'Rename', highlight: true,
-          action: () => { store.openRename(primaryId); close() },
+          keys: ['R'], description: 'Rename',          action: () => { store.openRename(primaryId); close() },
         }] : []),
         ...(isIcon ? [{
           keys: ['S'], description: 'Swap icon image',
@@ -160,8 +156,7 @@ function buildItems(store: ReturnType<typeof useAppStore.getState>, pos: { x: nu
     modeLabel: 'Canvas',
     items: [
       ...(store.clipboard.length > 0 ? [{
-        keys: ['⌘V'], description: 'Paste', highlight: true,
-        action: () => { store.pasteAt(worldPos.x, worldPos.y); close() },
+        keys: ['⌘V'], description: 'Paste',        action: () => { store.pasteAt(worldPos.x, worldPos.y); close() },
       }] : []),
       {
         keys: ['Q'], description: 'Add icon',
@@ -274,10 +269,10 @@ export function ContextMenu() {
                 <kbd
                   key={ki}
                   style={{
-                    background: item.highlight ? 'var(--accent-bg)' : 'var(--kbd-bg)',
-                    border: item.highlight ? '1px solid var(--accent-highlight-border)' : '1px solid var(--border)',
+                    background: 'var(--kbd-bg)',
+                    border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)',
-                    color: item.highlight ? 'var(--accent-light)' : 'var(--text-kbd)',
+                    color: 'var(--text-kbd)',
                     fontSize: 11,
                     fontFamily: 'var(--font-ui)',
                     padding: '1px 6px',
@@ -291,7 +286,7 @@ export function ContextMenu() {
             </div>
             <span style={{
               fontSize: 11,
-              color: item.highlight ? 'var(--text-secondary)' : 'var(--text-tertiary)',
+              color: 'var(--text-tertiary)',
               textAlign: 'right',
             }}>
               {item.description}

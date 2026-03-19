@@ -8,6 +8,7 @@ import { DiagramTabs } from './components/DiagramTabs'
 import { RenameInput } from './components/RenameInput'
 import { ContextMenu } from './components/ContextMenu'
 import { ConnectCreateMenu } from './components/ConnectCreateMenu'
+import { ElementActionMenu } from './components/ElementActionMenu'
 import { useAppStore, selectResolvedTheme } from './store/useAppStore'
 import { invalidateThemeColors } from './themes/themeColors'
 
@@ -49,6 +50,7 @@ export default function App() {
       <RenameInput />
       <ContextMenu />
       <ConnectCreateMenu />
+      <ElementActionMenu />
       <DiagramTabs />
     </div>
   )

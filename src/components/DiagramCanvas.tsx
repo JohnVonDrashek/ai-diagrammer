@@ -409,6 +409,14 @@ export function DiagramCanvas() {
         }
         return
       }
+      if ((e.key === 't' || e.key === 'T') && !e.metaKey && !e.ctrlKey) {
+        if (selectedConnectionIdRef.current) {
+          e.preventDefault()
+          const label = prompt('Connection label (leave blank to clear):') ?? null
+          if (label !== null) updateConnection(selectedConnectionIdRef.current, { label: label || undefined })
+          return
+        }
+      }
       if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey) {
         if (selectedIdsRef.current[0] && toolModeRef.current !== 'connect') {
           e.preventDefault()
@@ -462,6 +470,8 @@ export function DiagramCanvas() {
         }
         if (toolModeRef.current === 'connect') { connectCandidateIdRef.current = null; cancelConnecting(); return }
         closeColorPicker(); closeRename(); closeContextMenu()
+        useAppStore.getState().closeElementActionMenu()
+        useAppStore.getState().closeConnectCreateMenu()
         setSelected(null); setSelectedConnection(null); closeTextInput()
         useAppStore.getState().closeIconSearch()
       }
@@ -600,12 +610,12 @@ export function DiagramCanvas() {
       onDoubleClick: (screenX, screenY) => {
         const worldPos = screenToWorld(screenX, screenY, vpRef.current)
         const hit = hitTest(elementsRef.current, worldPos.x, worldPos.y, null)
+        const rect = canvasRef.current?.getBoundingClientRect() ?? { left: 0, top: 0 }
         if (hit.kind === 'element') {
-          const el = elementsRef.current.find((e) => e.id === hit.id)
-          if (el?.type === 'text') {
-            setSelected(hit.id)
-            openRename(hit.id)
-          }
+          setSelected(hit.id)
+          useAppStore.getState().openElementActionMenu(screenX + rect.left, screenY + rect.top, hit.id)
+        } else if (hit.kind === 'none') {
+          useAppStore.getState().openQuickCreateMenu(screenX + rect.left, screenY + rect.top, worldPos.x, worldPos.y)
         }
       },
 
