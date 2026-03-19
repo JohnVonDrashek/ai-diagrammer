@@ -22,7 +22,7 @@ export function ShortcutsHint() {
       { keys: ['D'], description: 'Reverse direction' },
       { keys: ['S'], description: 'Cycle style (solid/dashed/animated)' },
       { keys: ['C'], description: 'Change color' },
-      { keys: ['T'], description: 'Edit label' },
+      { keys: ['R'], description: 'Edit label' },
       { keys: ['⌫'], description: 'Delete' },
       { keys: ['Esc'], description: 'Deselect' },
     ]

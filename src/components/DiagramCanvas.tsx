@@ -409,7 +409,7 @@ export function DiagramCanvas() {
         }
         return
       }
-      if ((e.key === 't' || e.key === 'T') && !e.metaKey && !e.ctrlKey) {
+      if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey) {
         if (selectedConnectionIdRef.current) {
           e.preventDefault()
           const label = prompt('Connection label (leave blank to clear):') ?? null

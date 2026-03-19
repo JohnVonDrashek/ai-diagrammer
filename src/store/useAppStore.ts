@@ -449,11 +449,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   deleteConnection: (id) =>
     set((s) => withHistory(s, { connections: s.connections.filter((c) => c.id !== id) })),
   reverseConnection: (id) =>
-    set((s) => withHistory(s, {
-      connections: s.connections.map((c) =>
-        c.id === id ? { ...c, fromId: c.toId, toId: c.fromId } : c
-      ),
-    })),
+    set((s) => {
+      const target = s.connections.find((c) => c.id === id)
+      if (!target) return s
+      // Find the reverse connection (B→A when reversing A→B) to swap both
+      const reverseId = s.connections.find(
+        (c) => c.id !== id && c.fromId === target.toId && c.toId === target.fromId
+      )?.id
+      return withHistory(s, {
+        connections: s.connections.map((c) => {
+          if (c.id === id || c.id === reverseId) {
+            return { ...c, fromId: c.toId, toId: c.fromId }
+          }
+          return c
+        }),
+      })
+    }),
   startConnecting: (fromId) =>
     set({ connectingFromId: fromId, toolMode: 'connect', connectionPreviewPos: null }),
   finishConnecting: (toId) => {
