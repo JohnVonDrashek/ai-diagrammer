@@ -31,9 +31,17 @@ export function curveControlPoint(
   const mx = (x1 + x2) / 2
   const my = (y1 + y2) / 2
   if (offset === 0) return { cx: mx, cy: my }
-  // Perpendicular direction
-  const dx = x2 - x1
-  const dy = y2 - y1
+  // Always compute perpendicular from the same canonical direction
+  // so that A→B and B→A get opposite curves instead of the same one.
+  // The offset sign (+/-) already encodes which side each connection should curve to.
+  // We use a consistent direction: min(x1,y1)→max(x2,y2) lexicographically.
+  let dx = x2 - x1
+  let dy = y2 - y1
+  // Canonical direction: flip if start > end (ensures same perpendicular for both directions)
+  if (x1 > x2 || (x1 === x2 && y1 > y2)) {
+    dx = -dx
+    dy = -dy
+  }
   const len = Math.hypot(dx, dy)
   if (len === 0) return { cx: mx, cy: my }
   // Normal vector (perpendicular, rotated 90° CCW)
