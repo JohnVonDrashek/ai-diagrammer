@@ -185,7 +185,6 @@ interface AppState {
   addConnection: (c: ConnectionElement) => void
   deleteConnection: (id: ElementId) => void
   reverseConnection: (id: ElementId) => void
-  pendingConnectionStyle: ConnectionStyle
   startConnecting: (fromId: ElementId) => void
   finishConnecting: (toId: ElementId) => void
   cancelConnecting: () => void

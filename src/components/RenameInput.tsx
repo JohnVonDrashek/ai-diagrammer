@@ -43,7 +43,8 @@ export function RenameInput() {
     committedRef.current = true
     const md = htmlToMarkdown(editorRef.current?.innerHTML ?? '')
     if (md.trim()) {
-      const { width, height } = measureTextElement(md, el.fontSize)
+      const fontSize = 'fontSize' in el ? el.fontSize : 14
+      const { width, height } = measureTextElement(md, fontSize)
       updateElement(renamingId, { text: md, width, height } as never)
     }
     closeRename()

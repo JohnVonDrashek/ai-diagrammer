@@ -555,6 +555,22 @@ export function DiagramCanvas() {
 
     const ctrl = new GestureController(canvas, {
       onGestureDelta: (delta) => {
+        // Touch two-finger gesture with selected elements → resize only, no viewport changes
+        if (delta.isTouch && selectedIdsRef.current.length > 0 && (delta.deltaZoom !== 1 || delta.deltaPanX !== 0 || delta.deltaPanY !== 0)) {
+          if (delta.deltaZoom !== 1) {
+            const scale = delta.deltaZoom
+            for (const id of selectedIdsRef.current) {
+              const el = elementsRef.current.find((e) => e.id === id)
+              if (!el) continue
+              const cx = el.x + el.width / 2
+              const cy = el.y + el.height / 2
+              const newW = Math.max(20, el.width * scale)
+              const newH = Math.max(20, el.height * scale)
+              updateElement(id, { x: cx - newW / 2, y: cy - newH / 2, width: newW, height: newH })
+            }
+          }
+          return
+        }
         const d = rotationEnabledRef.current ? delta : { ...delta, deltaRotation: 0 }
         setViewport(applyGestureDelta(vpRef.current, d))
       },
@@ -611,10 +627,21 @@ export function DiagramCanvas() {
         const worldPos = screenToWorld(screenX, screenY, vpRef.current)
         const hit = hitTest(elementsRef.current, worldPos.x, worldPos.y, null)
         const rect = canvasRef.current?.getBoundingClientRect() ?? { left: 0, top: 0 }
+        const isTouchDevice = 'ontouchstart' in window && window.innerWidth < 1024
         if (hit.kind === 'element') {
+          // On touch: double-tap a selected element to deselect
+          if (isTouchDevice && selectedIdsRef.current.includes(hit.id)) {
+            setSelectedIds([])
+            return
+          }
           setSelected(hit.id)
           useAppStore.getState().openElementActionMenu(screenX + rect.left, screenY + rect.top, hit.id)
         } else if (hit.kind === 'none') {
+          // On touch: double-tap empty when selected = deselect
+          if (isTouchDevice && selectedIdsRef.current.length > 0) {
+            setSelectedIds([])
+            return
+          }
           useAppStore.getState().openQuickCreateMenu(screenX + rect.left, screenY + rect.top, worldPos.x, worldPos.y)
         }
       },

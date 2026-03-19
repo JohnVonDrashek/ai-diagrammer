@@ -15,6 +15,7 @@ export interface GestureDelta {
   deltaPanY: number     // CSS pixels
   originX: number       // CSS pixels, gesture center
   originY: number
+  isTouch: boolean      // true when gesture originates from touch input
 }
 
 export interface GestureCallbacks {
@@ -178,7 +179,12 @@ export class GestureController {
       this.lastDragPos = pos
       this.dragStartTime = now
     } else if (this.activePointers.size === 2) {
+      // If a drag was in progress, end it before switching to two-pointer mode
+      if (this.isDragging && !this.spaceHeld) {
+        this.callbacks.onDragEnd?.(this.lastDragPos.x, this.lastDragPos.y)
+      }
       this.isDragging = false
+      this.isTouchPanning = false
       const [p1, p2] = Array.from(this.activePointers.values())
       this.lastTwoAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x)
       this.lastTwoDist = Math.hypot(p2.x - p1.x, p2.y - p1.y)
@@ -197,6 +203,7 @@ export class GestureController {
         deltaRotation: 0, deltaZoom: 1,
         deltaPanX: dx, deltaPanY: dy,
         originX: pos.x, originY: pos.y,
+        isTouch: false,
       })
       return
     }
@@ -231,6 +238,7 @@ export class GestureController {
           deltaPanY: dy,
           originX: pos.x,
           originY: pos.y,
+          isTouch: true,
         })
       } else if (this.isDragging) {
         if (this.spaceHeld) {
@@ -242,6 +250,7 @@ export class GestureController {
             deltaPanY: dy,
             originX: pos.x,
             originY: pos.y,
+            isTouch: false,
           })
         } else {
           this.callbacks.onDragMove?.(dx, dy, pos.x, pos.y)
@@ -272,6 +281,7 @@ export class GestureController {
         deltaPanY,
         originX: centroid.x,
         originY: centroid.y,
+        isTouch: this.isTouch,
       })
 
       this.lastTwoAngle = currentAngle
@@ -333,6 +343,7 @@ export class GestureController {
         deltaPanY: 0,
         originX: pos.x,
         originY: pos.y,
+        isTouch: false,
       })
     } else if (e.ctrlKey || e.metaKey) {
       // Trackpad pinch-to-zoom (macOS sends ctrlKey=true for pinch) or Cmd+scroll
@@ -344,6 +355,7 @@ export class GestureController {
         deltaPanY: 0,
         originX: pos.x,
         originY: pos.y,
+        isTouch: false,
       })
     } else {
       // Trackpad two-finger scroll = pan
@@ -354,6 +366,7 @@ export class GestureController {
         deltaPanY: -e.deltaY,
         originX: pos.x,
         originY: pos.y,
+        isTouch: false,
       })
     }
   }
@@ -382,6 +395,7 @@ export class GestureController {
       deltaPanY: 0,
       originX: pos.x,
       originY: pos.y,
+      isTouch: false,
     })
 
     this.lastGestureRotation = ge.rotation

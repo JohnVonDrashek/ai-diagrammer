@@ -62,7 +62,7 @@ function buildItems(store: ReturnType<typeof useAppStore.getState>, pos: { x: nu
     return {
       modeLabel: 'Connect mode',
       items: [
-        { keys: ['click'], description: 'Connect to element', highlight: true },
+        { keys: ['click'], description: 'Connect to element' },
         { keys: ['Esc'], description: 'Cancel', action: () => { store.cancelConnecting(); close() } },
       ],
     }
@@ -72,7 +72,7 @@ function buildItems(store: ReturnType<typeof useAppStore.getState>, pos: { x: nu
     return {
       modeLabel: 'Text mode',
       items: [
-        { keys: ['click'], description: 'Place text here', highlight: true },
+        { keys: ['click'], description: 'Place text here' },
         { keys: ['Esc'], description: 'Cancel', action: () => { store.closeTextInput(); close() } },
       ],
     }

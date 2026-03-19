@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 
 interface FormatBarProps {
-  editorRef: React.RefObject<HTMLDivElement>
+  editorRef: React.RefObject<HTMLDivElement | null>
   hint?: string
 }
 
