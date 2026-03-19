@@ -619,11 +619,16 @@ export function DiagramCanvas() {
         }
       },
 
-      onDragStart: (screenX, screenY) => {
+      onDragStart: (screenX, screenY, isDoubleTapDrag) => {
         if (boxPlacementActiveRef.current) return // preview handled via onMouseDown/onMouseMove
         if (toolModeRef.current !== 'select') return
         const worldPos = screenToWorld(screenX, screenY, vpRef.current)
         const hit = hitTest(elementsRef.current, worldPos.x, worldPos.y, selectedIdsRef.current[0] ?? null)
+        // Touch: single-finger drag on empty canvas → pan (reject drag)
+        if (hit.kind === 'none' && !isDoubleTapDrag) {
+          const isTouchDevice = 'ontouchstart' in window && window.innerWidth < 1024
+          if (isTouchDevice) return false
+        }
         if (hit.kind === 'handle') {
           const el = elementsRef.current.find((e) => e.id === hit.id)
           if (el) {

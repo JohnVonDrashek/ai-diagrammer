@@ -21,7 +21,8 @@ export interface GestureCallbacks {
   onGestureDelta: (delta: GestureDelta) => void
   onClick?: (x: number, y: number) => void
   onDoubleClick?: (x: number, y: number) => void
-  onDragStart?: (x: number, y: number) => void
+  /** Return false to reject drag and fall back to panning (touch) */
+  onDragStart?: (x: number, y: number, isDoubleTapDrag: boolean) => boolean | void
   onDragMove?: (dx: number, dy: number, x: number, y: number) => void
   onDragEnd?: (x: number, y: number) => void
 }
@@ -51,10 +52,15 @@ export class GestureController {
   private dragStartPos: PointerPos = { x: 0, y: 0 }
   private lastDragPos: PointerPos = { x: 0, y: 0 }
 
-  // Double-click detection
+  // Double-click / double-tap detection
   private lastClickTime = 0
   private lastClickPos: PointerPos = { x: 0, y: 0 }
   private dragStartTime = 0
+
+  // Touch-specific: track pointer type and double-tap-drag
+  private isTouch = false
+  private isDoubleTapDrag = false
+  private isTouchPanning = false
 
   // Middle-mouse pan state
   private middlePanPointerId: number | null = null
@@ -158,12 +164,19 @@ export class GestureController {
     this.canvas.setPointerCapture(e.pointerId)
     const pos = this.rel(e.clientX, e.clientY)
     this.activePointers.set(e.pointerId, pos)
+    this.isTouch = e.pointerType === 'touch'
 
     if (this.activePointers.size === 1) {
       this.isDragging = false
+      this.isTouchPanning = false
+      // Detect if this touch-down is a double-tap (for double-tap-drag)
+      const now = Date.now()
+      const timeSinceLast = now - this.lastClickTime
+      const distFromLast = Math.hypot(pos.x - this.lastClickPos.x, pos.y - this.lastClickPos.y)
+      this.isDoubleTapDrag = this.isTouch && timeSinceLast < 400 && distFromLast < 20
       this.dragStartPos = pos
       this.lastDragPos = pos
-      this.dragStartTime = Date.now()
+      this.dragStartTime = now
     } else if (this.activePointers.size === 2) {
       this.isDragging = false
       const [p1, p2] = Array.from(this.activePointers.values())
@@ -200,12 +213,26 @@ export class GestureController {
         pos.y - this.dragStartPos.y
       )
 
-      if (!this.isDragging && totalMoved > 4) {
+      if (!this.isDragging && !this.isTouchPanning && totalMoved > 4) {
         this.isDragging = true
-        this.callbacks.onDragStart?.(this.dragStartPos.x, this.dragStartPos.y)
+        const accepted = this.callbacks.onDragStart?.(this.dragStartPos.x, this.dragStartPos.y, this.isDoubleTapDrag)
+        // If touch drag was rejected (empty canvas, not double-tap), fall back to panning
+        if (accepted === false && this.isTouch) {
+          this.isDragging = false
+          this.isTouchPanning = true
+        }
       }
 
-      if (this.isDragging) {
+      if (this.isTouchPanning) {
+        this.callbacks.onGestureDelta({
+          deltaRotation: 0,
+          deltaZoom: 1,
+          deltaPanX: dx,
+          deltaPanY: dy,
+          originX: pos.x,
+          originY: pos.y,
+        })
+      } else if (this.isDragging) {
         if (this.spaceHeld) {
           // Space+drag = pan
           this.callbacks.onGestureDelta({
@@ -262,7 +289,9 @@ export class GestureController {
     const pos = this.rel(e.clientX, e.clientY)
 
     if (this.activePointers.size === 1) {
-      if (this.isDragging) {
+      if (this.isTouchPanning) {
+        this.isTouchPanning = false
+      } else if (this.isDragging) {
         if (!this.spaceHeld) {
           this.callbacks.onDragEnd?.(pos.x, pos.y)
         }
