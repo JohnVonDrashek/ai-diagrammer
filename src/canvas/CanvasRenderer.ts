@@ -3,7 +3,7 @@ import { buildViewportMatrix } from './ViewportMatrix'
 import { getIconImage, loadIcon, themeToHex } from '../icons/iconifyClient'
 import { getThemeColors, type ThemeColors } from '../themes/themeColors'
 import { measureTextElement, parseMarkdownLine, segmentFont, measureMarkdownLine, TEXT_PAD_X, TEXT_PAD_Y, TEXT_LINE_H } from './textMetrics'
-import { getCurveOffset, curveControlPoint as connCurveControlPoint, quadBezierEndAngle as connQuadBezierEndAngle, quadBezierPoint as connQuadBezierPoint } from './connectionPath'
+import { getCurveOffset, getIconAvoidanceOffset, curveControlPoint as connCurveControlPoint, quadBezierEndAngle as connQuadBezierEndAngle, quadBezierPoint as connQuadBezierPoint } from './connectionPath'
 
 const GRID_SIZE = 40
 
@@ -460,16 +460,23 @@ function drawConnections(
   tc: ThemeColors
 ) {
   const elMap = new Map(elements.map((e) => [e.id, e]))
+  // Collect icon elements for avoidance routing
+  const iconObstacles = elements.filter((e) => e.type === 'icon')
 
   for (const conn of connections) {
     const from = elMap.get(conn.fromId)
     const to = elMap.get(conn.toId)
     if (!from || !to) continue
 
-    const offset = getCurveOffset(conn, connections)
-    // For curved connections, aim edge points slightly offset so the curve exits cleanly
+    const biOffset = getCurveOffset(conn, connections)
+    // Compute avoidance offset to route around icon elements
     const fromCenter = elementCenter(from)
     const toCenter = elementCenter(to)
+    const avoidIcons = iconObstacles.filter((e) => e.id !== conn.fromId && e.id !== conn.toId)
+    const avoidOffset = avoidIcons.length > 0
+      ? getIconAvoidanceOffset(fromCenter.x, fromCenter.y, toCenter.x, toCenter.y, avoidIcons)
+      : 0
+    const offset = biOffset + avoidOffset
     let aimFrom: { x: number; y: number } = toCenter
     let aimTo: { x: number; y: number } = fromCenter
     if (offset !== 0) {

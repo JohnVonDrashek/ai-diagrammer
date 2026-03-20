@@ -3,12 +3,13 @@ import { useAppStore, selectResolvedTheme } from '../store/useAppStore'
 import { Tooltip } from './Tooltip'
 
 export function DiagramTabs() {
-  const { diagrams, activeDiagramId, createDiagram, switchDiagram, renameDiagram, deleteDiagram, reorderDiagrams } = useAppStore()
+  const { diagrams, activeDiagramId, createDiagram, switchDiagram, renameDiagram, deleteDiagram, clearAllDiagrams, reorderDiagrams } = useAppStore()
   const resolvedTheme = useAppStore(selectResolvedTheme)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [confirmClearAll, setConfirmClearAll] = useState(false)
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -50,6 +51,27 @@ export function DiagramTabs() {
         scrollbarWidth: 'none',
       }}
     >
+      {/* Clear all button */}
+      <Tooltip content="Clear all diagrams">
+        <button
+          onClick={() => setConfirmClearAll(true)}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--text-tab-inactive)', fontSize: 12, lineHeight: 1,
+            padding: '0 8px', height: 26,
+            display: 'flex', alignItems: 'center',
+            borderRadius: 'var(--radius-sm)',
+            transition: 'color 0.12s',
+            fontFamily: 'var(--font-ui)',
+            whiteSpace: 'nowrap',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--danger)' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-tab-inactive)' }}
+        >
+          Clear all
+        </button>
+      </Tooltip>
+
       {diagrams.map((diagram, index) => {
         const isActive = diagram.id === activeDiagramId
         const isEditing = editingId === diagram.id
@@ -209,6 +231,31 @@ export function DiagramTabs() {
             background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)',
             color: 'var(--danger)', padding: '5px 14px', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-ui)',
           }}>Delete</button>
+        </div>
+      </div>
+    </>}
+
+    {confirmClearAll && <>
+      <div onClick={() => setConfirmClearAll(false)} style={{ position: 'fixed', inset: 0, zIndex: 399 }} />
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        zIndex: 400, background: 'var(--surface-overlay)', border: '1px solid var(--border-muted)',
+        borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)',
+        backdropFilter: 'var(--backdrop-blur)', padding: '20px 24px', minWidth: 280,
+      }}>
+        <p style={{ fontSize: 14, color: 'var(--text)', marginBottom: 6 }}>
+          Clear all {diagrams.length} diagrams?
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>All diagrams will be deleted and replaced with a blank workspace. This cannot be undone.</p>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={() => setConfirmClearAll(false)} style={{
+            background: 'none', border: '1px solid var(--border-muted)', borderRadius: 'var(--radius-md)',
+            color: 'var(--text-secondary)', padding: '5px 14px', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+          }}>Cancel</button>
+          <button onClick={() => { clearAllDiagrams(); setConfirmClearAll(false) }} style={{
+            background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)',
+            color: 'var(--danger)', padding: '5px 14px', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+          }}>Clear all</button>
         </div>
       </div>
     </>}

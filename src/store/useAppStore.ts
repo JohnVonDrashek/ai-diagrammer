@@ -137,6 +137,7 @@ interface AppState {
   switchDiagram: (id: string) => void
   renameDiagram: (id: string, name: string) => void
   deleteDiagram: (id: string) => void
+  clearAllDiagrams: () => void
   reorderDiagrams: (fromIndex: number, toIndex: number) => void
   importDiagram: (diagram: Diagram) => void
   loadWorkspace: (diagrams: Diagram[], activeDiagramId: string) => void
@@ -213,7 +214,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedIds: [],
   selectedConnectionId: null,
   toolMode: 'select',
-  rotationEnabled: saved?.rotationEnabled ?? true,
+  rotationEnabled: saved?.rotationEnabled ?? false,
   hierarchyMove: saved?.hierarchyMove ?? false,
   defaultFontSize: saved?.defaultFontSize ?? 16,
   theme: saved?.theme ?? 'system',
@@ -273,6 +274,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       const idx = s.diagrams.findIndex((d) => d.id === id)
       const fallback = remaining[Math.max(0, idx - 1)]
       const next$ = { diagrams: remaining, activeDiagramId: fallback.id, elements: fallback.elements, connections: fallback.connections, viewport: fallback.viewport, ...EPHEMERAL_RESET }
+      setTimeout(() => flushSave({ ...s, ...next$ }), 0)
+      return next$
+    }),
+  clearAllDiagrams: () =>
+    set((s) => {
+      const fresh = makeDiagram({ name: 'Diagram 1' })
+      const next$ = { diagrams: [fresh], activeDiagramId: fresh.id, elements: fresh.elements, connections: fresh.connections, viewport: fresh.viewport, ...EPHEMERAL_RESET }
       setTimeout(() => flushSave({ ...s, ...next$ }), 0)
       return next$
     }),

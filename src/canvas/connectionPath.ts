@@ -1,4 +1,4 @@
-import type { ConnectionElement, DiagramElement } from '../store/types'
+import type { ConnectionElement } from '../store/types'
 
 /**
  * Computes the perpendicular curve offset for a connection.
@@ -96,4 +96,141 @@ export function distToQuadBezier(
     if (d < minDist) minDist = d
   }
   return minDist
+}
+
+/**
+ * Checks if a quadratic bezier curve passes through an obstacle's bounding box.
+ * Samples the curve at multiple points for intersection testing.
+ */
+function curveHitsRect(
+  x1: number, y1: number,
+  cx: number, cy: number,
+  x2: number, y2: number,
+  obs: { x: number; y: number; width: number; height: number },
+  margin: number,
+  samples = 24
+): boolean {
+  const left = obs.x - margin
+  const right = obs.x + obs.width + margin
+  const top = obs.y - margin
+  const bottom = obs.y + obs.height + margin
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples
+    const pt = quadBezierPoint(x1, y1, cx, cy, x2, y2, t)
+    if (pt.x >= left && pt.x <= right && pt.y >= top && pt.y <= bottom) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * Computes a curve offset that routes the connection around obstructing icon elements.
+ * Uses the same canonical normal direction as curveControlPoint so offsets can be summed.
+ * Iteratively checks the resulting curve to catch icons the curve swings into.
+ * Returns 0 if no avoidance is needed.
+ */
+export function getIconAvoidanceOffset(
+  fromCx: number, fromCy: number,
+  toCx: number, toCy: number,
+  obstacles: { x: number; y: number; width: number; height: number }[]
+): number {
+  let dx = toCx - fromCx
+  let dy = toCy - fromCy
+  // Use same canonical direction as curveControlPoint
+  if (fromCx > toCx || (fromCx === toCx && fromCy > toCy)) {
+    dx = -dx
+    dy = -dy
+  }
+  const len = Math.hypot(dx, dy)
+  if (len < 1) return 0
+
+  // Canonical perpendicular normal (same as curveControlPoint: CCW rotation)
+  const nx = -dy / len
+  const ny = dx / len
+
+  // Original line direction for along-line projection (always from→to)
+  const origDx = toCx - fromCx
+  const origDy = toCy - fromCy
+  const origUx = origDx / len
+  const origUy = origDy / len
+
+  const MARGIN = 20
+  const activeSet = new Set<number>()
+  let currentOffset = 0
+
+  // Iteratively discover obstacles: first check the straight line, then check
+  // the resulting curve to catch icons the curve might swing into.
+  for (let pass = 0; pass < 4; pass++) {
+    let foundNew = false
+
+    if (pass === 0) {
+      // First pass: check which obstacles the straight line intersects
+      for (let i = 0; i < obstacles.length; i++) {
+        const obs = obstacles[i]
+        const ocx = obs.x + obs.width / 2
+        const ocy = obs.y + obs.height / 2
+        const ex = ocx - fromCx
+        const ey = ocy - fromCy
+        const along = ex * origUx + ey * origUy
+        if (along < -obs.width || along > len + obs.width) continue
+        const perp = ex * nx + ey * ny
+        const projHalf = Math.abs(nx) * (obs.width / 2) + Math.abs(ny) * (obs.height / 2)
+        if (Math.abs(perp) < projHalf + 5) {
+          activeSet.add(i)
+          foundNew = true
+        }
+      }
+    } else {
+      // Later passes: sample the current curve and check for new obstacles
+      const cp = curveControlPoint(fromCx, fromCy, toCx, toCy, currentOffset)
+      for (let i = 0; i < obstacles.length; i++) {
+        if (activeSet.has(i)) continue
+        if (curveHitsRect(fromCx, fromCy, cp.cx, cp.cy, toCx, toCy, obstacles[i], 8)) {
+          activeSet.add(i)
+          foundNew = true
+        }
+      }
+    }
+
+    if (!foundNew && pass > 0) break
+    if (activeSet.size === 0) return 0
+
+    // Compute minimum offset to clear all active obstacles
+    let posMin = 0
+    let negMin = 0
+
+    for (const i of activeSet) {
+      const obs = obstacles[i]
+      const ocx = obs.x + obs.width / 2
+      const ocy = obs.y + obs.height / 2
+      const ex = ocx - fromCx
+      const ey = ocy - fromCy
+      const along = ex * origUx + ey * origUy
+      const perp = ex * nx + ey * ny
+      const projHalf = Math.abs(nx) * (obs.width / 2) + Math.abs(ny) * (obs.height / 2)
+
+      // Curve displacement at parameter t: 2*t*(1-t)*offset
+      const t = Math.max(0.05, Math.min(0.95, along / len))
+      const curveFactor = 2 * t * (1 - t)
+      if (curveFactor < 0.01) continue
+
+      // To avoid by curving positive: curve must exceed the obstacle's positive edge
+      const posRequired = (perp + projHalf + MARGIN) / curveFactor
+      // To avoid by curving negative: curve must go below the obstacle's negative edge
+      const negRequired = (perp - projHalf - MARGIN) / curveFactor
+
+      if (posRequired > 0) posMin = Math.max(posMin, posRequired)
+      if (negRequired < 0) negMin = Math.min(negMin, negRequired)
+    }
+
+    if (posMin === 0 && negMin === 0) return 0
+
+    // Choose direction requiring less offset
+    currentOffset = posMin === 0 ? negMin
+      : negMin === 0 ? posMin
+      : posMin <= Math.abs(negMin) ? posMin : negMin
+  }
+
+  return currentOffset
 }
