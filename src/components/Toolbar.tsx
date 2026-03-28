@@ -9,7 +9,35 @@ const DEFAULT_VIEWPORT = { panX: 0, panY: 0, zoom: 1, rotation: 0 }
 
 type PendingImport =
   | { kind: 'diagram'; fileName: string; diagram: Diagram }
-  | { kind: 'workspace'; fileName: string; diagrams: Diagram[]; activeDiagramId: string }
+  | {
+      kind: 'workspace'
+      fileName: string
+      diagrams: Diagram[]
+      activeDiagramId: string
+      reloadHandle?: WorkspaceFileHandle
+      importedFileModifiedAt?: number
+    }
+
+type WorkspaceFileHandle = {
+  name: string
+  getFile: () => Promise<File>
+}
+
+type WorkspaceReloadSource = {
+  fileName: string
+  handle: WorkspaceFileHandle
+  lastImportedModifiedAt: number
+  latestKnownModifiedAt: number
+}
+
+type OpenFilePickerOptions = {
+  multiple?: boolean
+  excludeAcceptAllOption?: boolean
+  types?: Array<{
+    description?: string
+    accept: Record<string, string[]>
+  }>
+}
 
 export function Toolbar() {
   const { selectedIds, deleteSelected, openIconSearch, viewport, setViewport, theme, toggleTheme, toolMode, rotationEnabled, toggleRotation, hierarchyMove, toggleHierarchyMove, connectionRouting, setConnectionRouting, defaultFontSize, setDefaultFontSize, diagrams, activeDiagramId, elements, connections, importDiagram, loadWorkspace } = useAppStore()
@@ -21,6 +49,8 @@ export function Toolbar() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const [importMenuOpen, setImportMenuOpen] = useState(false)
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
+  const [workspaceReloadSource, setWorkspaceReloadSource] = useState<WorkspaceReloadSource | null>(null)
+  const [isWorkspaceReloading, setIsWorkspaceReloading] = useState(false)
   const [isDropTargetActive, setIsDropTargetActive] = useState(false)
   const dragDepthRef = useRef(0)
 
@@ -47,6 +77,13 @@ export function Toolbar() {
 
   const [fontSizeInput, setFontSizeInput] = useState<string | null>(null)
   const fontSizeScrollAccum = useRef(0)
+  const workspaceHasExternalChanges = !!workspaceReloadSource && workspaceReloadSource.latestKnownModifiedAt > workspaceReloadSource.lastImportedModifiedAt
+  const canQuickReloadWorkspace = !!workspaceReloadSource && !isWorkspaceReloading
+  const reloadButtonTitle = !workspaceReloadSource
+    ? 'Reload workspace (import one first)'
+    : workspaceHasExternalChanges
+      ? `Reload ${workspaceReloadSource.fileName} (updated on disk)`
+      : `Reload ${workspaceReloadSource.fileName}`
   const commitFontSize = (raw: string) => {
     const val = parseInt(raw)
     if (!isNaN(val) && val >= 8 && val <= 96) setDefaultFontSize(val)
@@ -78,8 +115,16 @@ export function Toolbar() {
     URL.revokeObjectURL(url)
   }
 
-  const loadImportFile = async (file: File) => {
+  const loadImportFile = async (file: File, options?: { reloadHandle?: WorkspaceFileHandle }) => {
     const parsed = parseImportFile(await file.text(), file.name)
+    if (parsed.kind === 'workspace' && options?.reloadHandle) {
+      setPendingImport({
+        ...parsed,
+        reloadHandle: options.reloadHandle,
+        importedFileModifiedAt: file.lastModified,
+      })
+      return
+    }
     setPendingImport(parsed)
   }
 
@@ -123,6 +168,51 @@ export function Toolbar() {
       alert('Could not read workspace file.')
     }
     e.target.value = ''
+  }
+
+  const handleImportWorkspaceFromPicker = async () => {
+    setImportMenuOpen(false)
+    const showOpenFilePicker = (window as Window & {
+      showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<WorkspaceFileHandle[]>
+    }).showOpenFilePicker
+
+    if (!showOpenFilePicker) {
+      workspaceFileInputRef.current?.click()
+      return
+    }
+
+    try {
+      const [handle] = await showOpenFilePicker({
+        multiple: false,
+        types: [{
+          description: 'JSON files',
+          accept: { 'application/json': ['.json'] },
+        }],
+      })
+      if (!handle) return
+      const file = await handle.getFile()
+      await loadImportFile(file, { reloadHandle: handle })
+    } catch (error) {
+      if (isAbortError(error)) return
+      if (error instanceof TypeError) {
+        workspaceFileInputRef.current?.click()
+        return
+      }
+      alert('Could not read workspace file.')
+    }
+  }
+
+  const handleReloadWorkspace = async () => {
+    if (!workspaceReloadSource) return
+    setIsWorkspaceReloading(true)
+    try {
+      const file = await workspaceReloadSource.handle.getFile()
+      await loadImportFile(file, { reloadHandle: workspaceReloadSource.handle })
+    } catch {
+      alert(`Could not reload ${workspaceReloadSource.fileName}.`)
+    } finally {
+      setIsWorkspaceReloading(false)
+    }
   }
 
   useEffect(() => {
@@ -184,12 +274,52 @@ export function Toolbar() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!workspaceReloadSource) return
+
+    const { handle } = workspaceReloadSource
+
+    let cancelled = false
+    const syncWorkspaceTimestamp = async () => {
+      try {
+        const file = await handle.getFile()
+        if (cancelled) return
+        setWorkspaceReloadSource((current) => {
+          if (!current || current.handle !== handle) return current
+          if (current.fileName === file.name && current.latestKnownModifiedAt === file.lastModified) return current
+          return { ...current, fileName: file.name, latestKnownModifiedAt: file.lastModified }
+        })
+      } catch {}
+    }
+
+    void syncWorkspaceTimestamp()
+    const timer = window.setInterval(() => {
+      void syncWorkspaceTimestamp()
+    }, 5000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [workspaceReloadSource?.handle])
+
   const confirmPendingImport = () => {
     if (!pendingImport) return
     if (pendingImport.kind === 'diagram') {
       importDiagram(pendingImport.diagram)
     } else {
       loadWorkspace(pendingImport.diagrams, pendingImport.activeDiagramId)
+      if (pendingImport.reloadHandle) {
+        const lastImportedModifiedAt = pendingImport.importedFileModifiedAt ?? Date.now()
+        setWorkspaceReloadSource({
+          fileName: pendingImport.fileName,
+          handle: pendingImport.reloadHandle,
+          lastImportedModifiedAt,
+          latestKnownModifiedAt: lastImportedModifiedAt,
+        })
+      } else {
+        setWorkspaceReloadSource(null)
+      }
     }
     setPendingImport(null)
   }
@@ -427,7 +557,7 @@ export function Toolbar() {
       {/* Export / Import */}
       <Divider />
       <input ref={fileInputRef} type="file" accept=".holychart.json,.json" onChange={handleImport} style={{ display: 'none' }} />
-      <input ref={workspaceFileInputRef} type="file" accept=".holychart.workplace.json,.json" onChange={handleImportWorkspace} style={{ display: 'none' }} />
+      <input ref={workspaceFileInputRef} type="file" accept=".holychart.workplace.json,.holychart.workspace.json,.json" onChange={handleImportWorkspace} style={{ display: 'none' }} />
       <Tooltip content="Export">
       <button
         ref={exportBtnRef}
@@ -461,6 +591,54 @@ export function Toolbar() {
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </button>
+      </Tooltip>
+      <Tooltip content={reloadButtonTitle}>
+      <button
+        onClick={() => { void handleReloadWorkspace() }}
+        disabled={!canQuickReloadWorkspace}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          background: workspaceHasExternalChanges
+            ? 'color-mix(in srgb, #f59e0b 16%, transparent)'
+            : workspaceReloadSource
+              ? 'var(--accent-bg-subtle)'
+              : 'transparent',
+          border: workspaceHasExternalChanges
+            ? '1px solid color-mix(in srgb, #f59e0b 56%, var(--border))'
+            : workspaceReloadSource
+              ? '1px solid var(--accent-border)'
+              : '1px solid transparent',
+          borderRadius: 'var(--radius-md)',
+          color: workspaceHasExternalChanges
+            ? 'color-mix(in srgb, #fbbf24 72%, var(--text))'
+            : workspaceReloadSource
+              ? 'var(--accent-light)'
+              : 'var(--text-kbd)',
+          opacity: canQuickReloadWorkspace ? 1 : 0.45,
+          padding: '3px 8px',
+          cursor: canQuickReloadWorkspace ? 'pointer' : 'not-allowed',
+          fontSize: 12,
+          transition: 'all 0.12s',
+        }}
+        onMouseEnter={(e) => {
+          if (!canQuickReloadWorkspace) return
+          e.currentTarget.style.background = workspaceHasExternalChanges
+            ? 'color-mix(in srgb, #f59e0b 22%, transparent)'
+            : 'var(--accent-bg)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = workspaceHasExternalChanges
+            ? 'color-mix(in srgb, #f59e0b 16%, transparent)'
+            : workspaceReloadSource
+              ? 'var(--accent-bg-subtle)'
+              : 'transparent'
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+          <polyline points="21 3 21 9 15 9" />
         </svg>
       </button>
       </Tooltip>
@@ -524,7 +702,7 @@ export function Toolbar() {
           ]
         : [
             { label: 'Import tab', sub: 'Add a .holychart.json as a new tab', action: () => { fileInputRef.current?.click(); setImportMenuOpen(false) } },
-            { label: 'Import workspace', sub: 'Replace all tabs from a workspace file', action: () => { workspaceFileInputRef.current?.click(); setImportMenuOpen(false) } },
+            { label: 'Import workspace', sub: 'Replace all tabs and remember it for reload', action: () => { void handleImportWorkspaceFromPicker() } },
           ]
       return (
         <>
@@ -649,6 +827,10 @@ function Divider() {
 
 function hasFiles(dataTransfer: DataTransfer | null) {
   return Array.from(dataTransfer?.types ?? []).includes('Files')
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === 'AbortError'
 }
 
 function parseImportFile(text: string, fileName: string): PendingImport {
