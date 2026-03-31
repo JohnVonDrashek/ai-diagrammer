@@ -23,6 +23,8 @@ Use this skill when creating or modifying HolyChart diagrams programmatically â€
 
 ### Workspace (multiple diagrams): `workspace.holychart.workplace.json`
 
+The app exports `workspace.holychart.workplace.json` by default and also accepts `workspace.holychart.workspace.json` on import.
+
 ```json
 {
   "version": 1,
@@ -30,6 +32,17 @@ Use this skill when creating or modifying HolyChart diagrams programmatically â€
   "activeDiagramId": "id-of-active-diagram"
 }
 ```
+
+## Actual Canvas Semantics
+
+- `x` and `y` are the element's top-left world coordinates, not its center.
+- With viewport `{ "panX": 0, "panY": 0, "zoom": 1, "rotation": 0 }`, world `(0,0)` appears near the canvas top-left, not the center.
+- Negative coordinates are valid, but they will render offscreen on first import unless you also set viewport pan.
+- Element order matters. Boxes do not automatically go behind their children, so grouping boxes should usually appear earlier in the `elements` array than the icons/text they contain.
+- Icon labels render below the icon and can be wider than the icon itself. Leave extra vertical and horizontal space.
+- Labeled icons take up more visual height than `height` suggests. With the default 16px UI font, a `56x56` icon with a label visually needs about `100px` of total height.
+- Text elements are remeasured from their content at render time. Keep `width` and `height` close to the expected text size even though the app can recompute them.
+- The current renderer uses the global toolbar font size for displayed text, box titles, icon labels, and connection labels. Per-element `fontSize` values are still stored and used for text measurement/editing, but should not be relied on for mixed-size layouts.
 
 ## Element Types
 
@@ -75,7 +88,7 @@ Rich text with markdown support.
 ```
 
 - `text`: Supports `**bold**`, `*italic*`, `***bold+italic***`, and `\n` line breaks
-- `fontSize`: Number in pixels (common values: 12, 14, 16, 20, 24, 32)
+- `fontSize`: Number in pixels (common values: 12, 14, 16, 20, 24, 32). Store a reasonable value, but do not rely on it for final rendered size because the app currently renders text using the global font setting.
 - `color` (optional): Hex color for text tint
 - Width/height auto-adjust to content in the UI, but set reasonable initial values
 
@@ -87,7 +100,7 @@ Container/shape with optional text label.
 {
   "id": "box-1",
   "type": "box",
-  "text": "**API Layer**",
+  "text": "API Layer",
   "x": 50,
   "y": 50,
   "width": 300,
@@ -99,9 +112,10 @@ Container/shape with optional text label.
 ```
 
 - `style`: `"solid"` (default), `"dashed"`, or `"filled"`
-- `text`: Label with markdown support, displayed at top of box
+- `text`: Plain text label displayed at the top-left of the box. Do not rely on markdown formatting here.
 - `color` (optional): Affects glow/border color; for `"filled"` style, fills the background
 - Use boxes as grouping containers â€” make them large enough to visually contain child elements
+- Put grouping boxes before their child elements in the `elements` array so they render behind the contents
 
 ## Connections
 
@@ -121,8 +135,9 @@ Directed arrows between elements.
 
 - `fromId` / `toId`: Must reference valid element IDs
 - `style`: `"solid"` (default), `"dashed"`, or `"animated"` (animated dashed line)
-- `label` (optional): Text shown on the connection line, supports markdown
+- `label` (optional): Plain text shown at the midpoint of the rendered path. Do not rely on markdown formatting here.
 - `color` (optional): Hex color for the arrow/line
+- Connections attach to element bounds, not their centers, and may auto-curve to separate bidirectional links or avoid icon obstacles
 
 ## Available Icons
 
@@ -241,12 +256,17 @@ Use the `mdi:icon-name` format. Common icons by category:
 
 ## Layout Guidelines
 
-- **Coordinate system**: Origin (0,0) is the center of the canvas. Positive X is right, positive Y is down.
-- **Spacing**: Keep at least 100px between icon centers for readability. Use 150-200px for cleaner layouts.
+- **Coordinate system**: `x`/`y` are top-left world coordinates. Positive X is right, positive Y is down.
+- **Initial visibility**: For diagrams that should open cleanly with the default viewport, prefer mostly non-negative coordinates and keep the main content near the upper-left region of world space. Only use large negative coordinates when you also set `viewport.panX` / `viewport.panY` intentionally.
+- **Spacing**: Keep at least 120px between icon top-left positions for readability. Use more when labels are long.
+- **Box padding**: For boxes with a title and labeled icons, leave about `60px` of top padding before the first icon row, about `45px` of bottom padding below the last icon row, and about `30px` of side padding.
+- **Row pitch**: For `56x56` labeled icons, use about `110-130px` vertical spacing between rows so labels do not scrape the next row or the box bottom.
 - **Grid alignment**: Align elements to a conceptual grid (e.g., multiples of 50px) for clean diagrams.
 - **Flow direction**: Left-to-right or top-to-bottom is most readable.
-- **Grouping**: Use `box` elements (style `"dashed"` or `"filled"`) to visually group related icons. Place the box behind icons by making it large enough and positioning it so the icons fall within its bounds.
-- **Labels**: Use icon `label` for short names. Use separate `text` elements for longer descriptions or titles.
+- **Grouping**: Use `box` elements (style `"dashed"` or `"filled"`) to visually group related icons. Make the box large enough to contain child elements and place the box earlier in the `elements` array so it renders underneath them.
+- **Labels**: Use icon `label` for short names, but remember labels extend below the icon and can be wider than the icon bounds. Use separate `text` elements for longer descriptions or titles.
+- **Connections**: Leave room around dense icon clusters because connections attach to bounding-box edges and labels sit at the midpoint of the final routed path.
+- **Auto-size caveat**: The app's quick "box around selection" behavior measures icon rectangles, not the extra label spill below them, so generated diagrams should size boxes manually rather than assuming auto-fit logic will look comfortable.
 - **IDs**: Use descriptive, unique IDs like `"web-server"`, `"db-primary"`, `"conn-api-to-db"`.
 
 ## Example: Three-Tier Architecture
@@ -260,8 +280,8 @@ Use the `mdi:icon-name` format. Common icons by category:
       "id": "client",
       "type": "icon",
       "iconName": "mdi:laptop",
-      "x": 0,
-      "y": -200,
+      "x": 280,
+      "y": 60,
       "width": 48,
       "height": 48,
       "label": "Client"
@@ -270,8 +290,8 @@ Use the `mdi:icon-name` format. Common icons by category:
       "id": "lb",
       "type": "icon",
       "iconName": "mdi:scale-balance",
-      "x": 0,
-      "y": -50,
+      "x": 280,
+      "y": 180,
       "width": 48,
       "height": 48,
       "label": "Load Balancer"
@@ -279,11 +299,11 @@ Use the `mdi:icon-name` format. Common icons by category:
     {
       "id": "api-box",
       "type": "box",
-      "text": "**API Layer**",
-      "x": -175,
-      "y": 50,
-      "width": 350,
-      "height": 120,
+      "text": "API Layer",
+      "x": 80,
+      "y": 300,
+      "width": 420,
+      "height": 160,
       "fontSize": 14,
       "style": "dashed",
       "color": "#4fc3f7"
@@ -292,8 +312,8 @@ Use the `mdi:icon-name` format. Common icons by category:
       "id": "api-1",
       "type": "icon",
       "iconName": "mdi:server",
-      "x": -100,
-      "y": 100,
+      "x": 160,
+      "y": 360,
       "width": 48,
       "height": 48,
       "label": "API Server 1"
@@ -302,8 +322,8 @@ Use the `mdi:icon-name` format. Common icons by category:
       "id": "api-2",
       "type": "icon",
       "iconName": "mdi:server",
-      "x": 100,
-      "y": 100,
+      "x": 360,
+      "y": 360,
       "width": 48,
       "height": 48,
       "label": "API Server 2"
@@ -312,8 +332,8 @@ Use the `mdi:icon-name` format. Common icons by category:
       "id": "cache",
       "type": "icon",
       "iconName": "mdi:cached",
-      "x": -100,
-      "y": 280,
+      "x": 160,
+      "y": 560,
       "width": 48,
       "height": 48,
       "label": "Redis Cache",
@@ -323,8 +343,8 @@ Use the `mdi:icon-name` format. Common icons by category:
       "id": "db",
       "type": "icon",
       "iconName": "mdi:database",
-      "x": 100,
-      "y": 280,
+      "x": 360,
+      "y": 560,
       "width": 48,
       "height": 48,
       "label": "PostgreSQL",
@@ -401,6 +421,6 @@ Use a grid layout with each service as an icon. Group related services in dashed
 - Use `"animated"` connection style for data flow or real-time streams
 - Use `"dashed"` connection style for optional or async communication
 - Use `"filled"` box style with a subtle color for highlighted/important groups
-- Keep viewport at `{ "panX": 0, "panY": 0, "zoom": 1, "rotation": 0 }` for default centering
+- Keep viewport at `{ "panX": 0, "panY": 0, "zoom": 1, "rotation": 0 }` only when your diagram is already placed in visible positive space; otherwise set pan intentionally
 - Generate unique IDs â€” use descriptive slugs like `"auth-service"` not numeric IDs
-- The app renders on HTML5 Canvas, so elements are positioned in world coordinates (not pixel-perfect CSS)
+- The app renders on HTML5 Canvas, so elements are positioned in world coordinates and layered by array order
